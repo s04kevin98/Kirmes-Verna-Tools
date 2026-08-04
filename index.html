@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verna Tools – Übersicht</title>
+<style>
+  :root{
+    --ink:#1b2a22;
+    --paper:#faf7ef;
+    --paper-2:#ffffff;
+    --line:#ddd3ba;
+    --line-soft:#eae2cc;
+    --forest:#2f4a3c;
+    --forest-dark:#1f332a;
+    --forest-tint:#e7ede8;
+    --gold:#8a6a2f;
+    --gold-tint:#f2ead4;
+    --success:#2f6b46;
+    --success-tint:#e4efe7;
+    --warning:#8a5a1f;
+    --warning-tint:#f5ecda;
+    --text-2:#5c6b60;
+    --text-muted:#8a9188;
+    --font-display:Georgia,'Times New Roman',serif;
+    --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background-color:var(--paper);
+    background-image:repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(47,74,60,0.05) 28px);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.5;
+    padding:0 0 50px;
+  }
+  .wrap{ max-width:920px; margin:0 auto; padding:0 20px; }
+
+  header.masthead{ background:var(--paper-2); border-bottom:3px solid var(--forest); padding:26px 0 20px; margin-bottom:26px; text-align:center; }
+  header img{ height:64px; width:auto; margin-bottom:10px; }
+  header .eyebrow{ font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold); font-weight:600; margin:0 0 4px; }
+  header h1{ font-family:var(--font-display); font-size:28px; font-weight:700; margin:0; color:var(--forest-dark); }
+  header .sub{ font-size:13.5px; color:var(--text-2); margin-top:6px; }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:32px; }
+  a.card{ display:block; background:var(--paper-2); border:1px solid var(--line); border-radius:12px; padding:22px 22px 20px; text-decoration:none; color:var(--ink); transition:transform 0.1s, box-shadow 0.1s; }
+  a.card:hover{ transform:translateY(-2px); box-shadow:0 6px 18px rgba(27,42,34,0.08); border-color:var(--forest); }
+  a.card .icon{ font-size:26px; margin-bottom:10px; display:block; }
+  a.card h2{ font-family:var(--font-display); font-size:19px; margin:0 0 6px; color:var(--forest-dark); }
+  a.card p{ font-size:13px; color:var(--text-2); margin:0 0 10px; line-height:1.5; }
+  a.card .badge{ display:inline-block; font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase; font-weight:600; padding:3px 9px; border-radius:12px; }
+  .badge.offline{ background:var(--success-tint); color:var(--success); }
+  .badge.online{ background:var(--warning-tint); color:var(--warning); }
+
+  .section-title{ font-family:var(--font-display); font-size:17px; color:var(--forest-dark); margin:34px 0 14px; padding-top:18px; border-top:2px solid var(--forest); }
+
+  .info-box{ background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:18px 20px; font-size:13.5px; color:var(--text-2); line-height:1.6; }
+  .info-box strong{ color:var(--ink); }
+
+  footer.note{ text-align:center; font-size:12px; color:var(--text-muted); margin-top:36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <img id="logo-img" alt="Logo Burschenschaft Verna" src="data:image/png;base64,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"/>
+    <p class="eyebrow">Burschenschaft Verna</p>
+    <h1>Verna Tools</h1>
+    <div class="sub">Übersicht aller internen Kassenwerkzeuge</div>
+  </header>
+
+  <div class="section-title">Am Kassenstand (täglich im Einsatz)</div>
+  <div class="grid">
+    <a class="card" href="./kassen-app.html">
+      <span class="icon">🛒</span>
+      <h2>Kassen-App</h2>
+      <p>Verkauf von Bons, Mitglieder-Bons und Fässern mit Rückgeld-Rechner.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
+    <a class="card" href="./kirmes-kassenabrechnung.html">
+      <span class="icon">💶</span>
+      <h2>Kassenabrechnung</h2>
+      <p>Anfangs-/Endbestand, Bargeldbewegungen und Soll-Ist-Abgleich je Kasse und Tag.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
+  </div>
+
+  <div class="section-title">Verwaltung & Nachbereitung</div>
+  <div class="grid">
+    <a class="card" href="./strafgeldliste.html">
+      <span class="icon">📋</span>
+      <h2>Kautions- &amp; Strafgeldliste</h2>
+      <p>Kaution pro Mitglied, Strafen erfassen, Rückzahlung berechnen.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
+    <a class="card" href="./einnahmen-ausgaben.html">
+      <span class="icon">📊</span>
+      <h2>Einnahmen &amp; Ausgaben</h2>
+      <p>Gesamtergebnis der Kirmes: alle Einnahmen und Ausgaben mit Kategorien.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
+  </div>
+
+  <div class="section-title">Überwachung</div>
+  <div class="grid">
+    <a class="card" href="./kassen-app-live.html">
+      <span class="icon">📡</span>
+      <h2>Live-Statistik</h2>
+      <p>Verkäufe der Kassen-App in Echtzeit mitverfolgen, z.&nbsp;B. vom Handy aus.</p>
+      <span class="badge online">Braucht Internet</span>
+    </a>
+  </div>
+
+  <div class="info-box">
+    <strong>Zur Internetverbindung:</strong> Alle Werkzeuge außer der Live-Statistik speichern ausschließlich lokal auf dem jeweiligen Gerät und funktionieren komplett ohne Internet, sobald sie einmal geöffnet wurden. Nur die Live-Statistik braucht eine bestehende Verbindung, da sie Daten von einem anderen Gerät abruft.
+  </div>
+
+  <footer class="note">Burschenschaft Verna &middot; internes Kassenwerkzeug &middot; nicht für externe Weitergabe</footer>
+</div>
+</body>
+</html>
