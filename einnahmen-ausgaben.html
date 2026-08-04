@@ -144,6 +144,7 @@
       <button class="danger-btn" onclick="resetAll()">Liste leeren</button>
     </div>
     <span class="status" id="save-status">&nbsp;</span>
+    <span class="status" id="cloud-badge" style="margin-left:10px;font-weight:600;"></span>
   </div>
 
   <div class="gesamt-grid" id="gesamt-summary"></div>
@@ -159,7 +160,11 @@
       <thead><tr><th style="width:120px;">Datum</th><th>Bezeichnung</th><th style="width:170px;">Kategorie</th><th style="width:110px;text-align:right;">Betrag</th><th style="width:40px;"></th></tr></thead>
       <tbody id="tbl-einnahmen"></tbody>
     </table>
-    <div class="add-btn-row"><button onclick="addEintrag('einnahme')">+ Einnahme hinzufügen</button></div>
+    <div class="add-btn-row">
+      <button onclick="addEintrag('einnahme')">+ Einnahme hinzufügen</button>
+      <button onclick="importAusKassenApp()">\u21bb Aus Kassen-App importieren</button>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:8px;" id="kassenapp-import-status"></span>
+    </div>
   </div>
 
   <div class="section-block">
@@ -181,18 +186,109 @@
 const STORAGE_KEY = 'verna-einnahmen-ausgaben';
 const KAT_EINNAHME = ['Eintrittsgelder','Bon-/Getränkeverkauf','Spenden','Sponsoring','Sonstige Einnahmen'];
 const KAT_AUSGABE = ['Wareneinkauf (Getränke/Essen)','Band/Musik','Standgebühr/Miete','Genehmigungen/Versicherung','Werbung/Deko','Sonstige Ausgaben'];
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
 
 let eintraege = [];
 let kirmesName = '';
 let saveTimer = null;
 let pendingSave = false;
 let idCounter = 1;
+let cloudOk = false;
+let syncTimers = {};
 
 function fmt(v){
   return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v) + ' \u20ac';
 }
 function heuteISO(){ return new Date().toISOString().slice(0,10); }
 function newId(){ return 'e' + (idCounter++) + '_' + Date.now().toString(36); }
+
+async function loadFromCloud(silent){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/buchungen?select=*&order=datum.asc`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    eintraege = rows.map(r=>({ id:r.id, art:r.art, datum:r.datum, bezeichnung:r.bezeichnung||'', kategorie:r.kategorie||'', betrag:parseFloat(r.betrag)||0 }));
+    const maxNum = eintraege.reduce((m,x)=>{
+      const match = /^e(\d+)_/.exec(x.id||'');
+      return match ? Math.max(m, parseInt(match[1])) : m;
+    }, 0);
+    idCounter = Math.max(idCounter, maxNum + 1);
+    cloudOk = true;
+    updateCloudBadge();
+    if(!silent) setStatus('Von Cloud geladen');
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({kirmesName, eintraege})); }catch(e){}
+    return true;
+  }catch(e){
+    cloudOk = false;
+    updateCloudBadge();
+    return false;
+  }
+}
+async function syncUpsertEintrag(e){
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/buchungen`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, { 'Prefer':'return=minimal,resolution=merge-duplicates' }),
+      body: JSON.stringify({ id:e.id, art:e.art, datum:e.datum||null, bezeichnung:e.bezeichnung, kategorie:e.kategorie, betrag:e.betrag })
+    });
+    cloudOk = true;
+  }catch(err){ cloudOk = false; }
+  updateCloudBadge();
+}
+async function syncDeleteEintrag(id){
+  try{ await fetch(`${SUPABASE_URL}/rest/v1/buchungen?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers: SB_HEADERS }); }catch(e){}
+}
+function scheduleSyncEintrag(e){
+  clearTimeout(syncTimers[e.id]);
+  syncTimers[e.id] = setTimeout(()=> syncUpsertEintrag(e), 600);
+}
+function updateCloudBadge(){
+  const el = document.getElementById('cloud-badge');
+  if(!el) return;
+  el.textContent = cloudOk ? '\u2601 Online \u2013 auf allen Geräten sichtbar' : '\u26a0 Offline \u2013 nur lokal gespeichert';
+  el.style.color = cloudOk ? 'var(--success)' : 'var(--danger)';
+}
+function istEditingText(){
+  const el = document.activeElement;
+  return el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA') && el.type!=='checkbox';
+}
+setInterval(async ()=>{
+  if(istEditingText()) return;
+  const ok = await loadFromCloud(true);
+  if(ok) renderAll();
+}, 15000);
+
+async function importAusKassenApp(){
+  const statusEl = document.getElementById('kassenapp-import-status');
+  if(statusEl) statusEl.textContent = 'lädt …';
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?select=tag,summe`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    const perTag = {};
+    rows.forEach(r=>{ perTag[r.tag] = (perTag[r.tag]||0) + (parseFloat(r.summe)||0); });
+    let count = 0;
+    Object.keys(perTag).forEach(tag=>{
+      const fixedId = 'kassenapp-' + tag;
+      let e = eintraege.find(x=>x.id===fixedId);
+      if(!e){
+        e = { id: fixedId, art:'einnahme', datum: heuteISO(), bezeichnung: 'Kassen-App Verkäufe ' + tag, kategorie: 'Bon-/Getränkeverkauf', betrag: 0 };
+        eintraege.push(e);
+      }
+      e.betrag = perTag[tag];
+      syncUpsertEintrag(e);
+      count++;
+    });
+    renderAll();
+    scheduleSave();
+    const uhrzeit = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    if(statusEl) statusEl.textContent = count + ' Tag(e) importiert/aktualisiert um ' + uhrzeit + ' Uhr';
+  }catch(e){
+    if(statusEl) statusEl.textContent = 'keine Verbindung zur Kassen-App';
+  }
+}
 
 function loadState(){
   try{
@@ -260,7 +356,11 @@ function resetAll(){
     document.getElementById('kirmes-name').value = '';
     renderAll();
     scheduleSave();
+    syncDeleteAllBuchungen();
   });
+}
+async function syncDeleteAllBuchungen(){
+  try{ await fetch(`${SUPABASE_URL}/rest/v1/buchungen?id=neq.__none__`, { method:'DELETE', headers: SB_HEADERS }); }catch(e){}
 }
 
 function exportFile(){
@@ -302,14 +402,17 @@ function importFile(input){
 
 function addEintrag(art){
   const kategorien = art==='einnahme' ? KAT_EINNAHME : KAT_AUSGABE;
-  eintraege.push({ id:newId(), art, datum:heuteISO(), bezeichnung:'', kategorie:kategorien[0], betrag:0 });
+  const e = { id:newId(), art, datum:heuteISO(), bezeichnung:'', kategorie:kategorien[0], betrag:0 };
+  eintraege.push(e);
   renderAll();
   scheduleSave();
+  syncUpsertEintrag(e);
 }
 function removeEintrag(id){
   eintraege = eintraege.filter(e=>e.id!==id);
   renderAll();
   scheduleSave();
+  syncDeleteEintrag(id);
 }
 function onFeld(id, feld, val){
   const e = eintraege.find(x=>x.id===id);
@@ -317,6 +420,7 @@ function onFeld(id, feld, val){
   e[feld] = feld==='betrag' ? (parseFloat(val)||0) : val;
   if(feld==='betrag'){ refreshTotals(); }
   scheduleSave();
+  scheduleSyncEintrag(e);
 }
 
 function rowHTML(e){
@@ -458,6 +562,7 @@ document.getElementById('header-date').textContent = 'Stand: ' + new Date().toLo
 loadState();
 document.getElementById('kirmes-name').value = kirmesName;
 renderAll();
+loadFromCloud(true).then(ok => { if(ok){ renderAll(); document.getElementById('kirmes-name').value = kirmesName; } });
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol !== 'file:'){

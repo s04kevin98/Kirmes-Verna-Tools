@@ -134,6 +134,7 @@
       <button class="danger-btn" onclick="resetAll()">Liste leeren</button>
     </div>
     <span class="status" id="save-status">&nbsp;</span>
+    <span class="status" id="cloud-badge" style="margin-left:10px;font-weight:600;"></span>
   </div>
 
   <div class="add-row">
@@ -156,10 +157,14 @@
 <script>
 const KAUTION_BETRAG = 150;
 const STORAGE_KEY = 'verna-strafgeldliste';
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
 let mitglieder = [];
 let saveTimer = null;
 let pendingSave = false;
 let idCounter = 1;
+let cloudOk = false;
 
 function fmt(v){
   return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v) + ' \u20ac';
@@ -184,6 +189,64 @@ function loadState(){
   }catch(e){}
   setStatus('Neue Liste');
 }
+async function loadFromCloud(silent){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/mitglieder?select=*&order=name.asc`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    const alteExpanded = {};
+    mitglieder.forEach(m=>{ alteExpanded[m.id] = m.expanded; });
+    mitglieder = rows.map(r=>({
+      id: r.id, name: r.name, bezahlt: !!r.bezahlt, rueckgezahlt: !!r.rueckgezahlt,
+      strafen: Array.isArray(r.strafen) ? r.strafen : [], expanded: !!alteExpanded[r.id]
+    }));
+    const maxNum = mitglieder.reduce((m,x)=>{
+      const match = /^m(\d+)_/.exec(x.id||'');
+      return match ? Math.max(m, parseInt(match[1])) : m;
+    }, 0);
+    idCounter = Math.max(idCounter, maxNum + 1);
+    cloudOk = true;
+    updateCloudBadge();
+    if(!silent) setStatus('Von Cloud geladen');
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(mitglieder)); }catch(e){}
+    return true;
+  }catch(e){
+    cloudOk = false;
+    updateCloudBadge();
+    return false;
+  }
+}
+async function syncUpsertMitglied(m){
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/mitglieder`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, { 'Prefer':'return=minimal,resolution=merge-duplicates' }),
+      body: JSON.stringify({ id:m.id, name:m.name, bezahlt:m.bezahlt, rueckgezahlt:m.rueckgezahlt, strafen:m.strafen })
+    });
+    cloudOk = true;
+  }catch(e){ cloudOk = false; }
+  updateCloudBadge();
+}
+async function syncDeleteMitglied(id){
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/mitglieder?id=eq.${encodeURIComponent(id)}`, { method:'DELETE', headers: SB_HEADERS });
+  }catch(e){}
+}
+function updateCloudBadge(){
+  const el = document.getElementById('cloud-badge');
+  if(!el) return;
+  el.textContent = cloudOk ? '\u2601 Online \u2013 auf allen Geräten sichtbar' : '\u26a0 Offline \u2013 nur lokal gespeichert';
+  el.style.color = cloudOk ? 'var(--success)' : 'var(--danger)';
+}
+function istEditingText(){
+  const el = document.activeElement;
+  return el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA') && el.type!=='checkbox';
+}
+setInterval(async ()=>{
+  if(istEditingText()) return;
+  const ok = await loadFromCloud(true);
+  if(ok) renderList();
+}, 15000);
 function scheduleSave(){
   setStatus('Wird gespeichert …');
   pendingSave = true;
@@ -221,7 +284,11 @@ function resetAll(){
     mitglieder = [];
     renderList();
     scheduleSave();
+    syncDeleteAllMitglieder();
   });
+}
+async function syncDeleteAllMitglieder(){
+  try{ await fetch(`${SUPABASE_URL}/rest/v1/mitglieder?id=neq.__none__`, { method:'DELETE', headers: SB_HEADERS }); }catch(e){}
 }
 
 function exportFile(){
@@ -257,20 +324,28 @@ function importFile(input){
 function summeStrafen(m){ return (m.strafen||[]).reduce((s,x)=> s + Math.abs(x.betrag||0), 0); }
 function rueckzahlung(m){ return KAUTION_BETRAG - summeStrafen(m); }
 
+let syncTimers = {};
+function scheduleSyncMitglied(m){
+  clearTimeout(syncTimers[m.id]);
+  syncTimers[m.id] = setTimeout(()=> syncUpsertMitglied(m), 600);
+}
 function addMitglied(){
   const input = document.getElementById('new-name');
   const name = input.value.trim();
   if(!name) return;
-  mitglieder.push({ id:newId(), name, bezahlt:false, rueckgezahlt:false, strafen:[], expanded:false });
+  const m = { id:newId(), name, bezahlt:false, rueckgezahlt:false, strafen:[], expanded:false };
+  mitglieder.push(m);
   input.value = '';
   renderList();
   scheduleSave();
+  syncUpsertMitglied(m);
 }
 function removeMitglied(id){
   askConfirm('Dieses Mitglied inklusive aller Strafeinträge wirklich entfernen?', ()=>{
     mitglieder = mitglieder.filter(m=>m.id!==id);
     renderList();
     scheduleSave();
+    syncDeleteMitglied(id);
   });
 }
 function toggleExpand(id){
@@ -283,12 +358,14 @@ function onToggleBezahlt(id, checked){
   if(m) m.bezahlt = checked;
   renderGesamt();
   scheduleSave();
+  if(m) syncUpsertMitglied(m);
 }
 function onToggleRueckgezahlt(id, checked){
   const m = mitglieder.find(x=>x.id===id);
   if(m) m.rueckgezahlt = checked;
   renderGesamt();
   scheduleSave();
+  if(m) syncUpsertMitglied(m);
 }
 function addStrafe(id){
   const m = mitglieder.find(x=>x.id===id);
@@ -297,6 +374,7 @@ function addStrafe(id){
   m.expanded = true;
   renderList();
   scheduleSave();
+  syncUpsertMitglied(m);
 }
 function removeStrafe(id, idx){
   const m = mitglieder.find(x=>x.id===id);
@@ -304,6 +382,7 @@ function removeStrafe(id, idx){
   m.strafen.splice(idx,1);
   refreshRow(id);
   scheduleSave();
+  syncUpsertMitglied(m);
 }
 function onStrafeBetrag(id, idx, val){
   const m = mitglieder.find(x=>x.id===id);
@@ -311,13 +390,16 @@ function onStrafeBetrag(id, idx, val){
   m.strafen[idx].betrag = parseFloat(val) || 0;
   refreshRow(id);
   scheduleSave();
+  scheduleSyncMitglied(m);
 }
 function onStrafeGrund(id, idx, val){
   const m = mitglieder.find(x=>x.id===id);
   if(!m) return;
   m.strafen[idx].grund = val;
   scheduleSave();
+  scheduleSyncMitglied(m);
 }
+
 function refreshRow(id){
   const m = mitglieder.find(x=>x.id===id);
   if(!m) return;
@@ -482,6 +564,7 @@ function printListe(){
 document.getElementById('header-date').textContent = 'Stand: ' + jetzt();
 loadState();
 renderList();
+loadFromCloud(true).then(ok => { if(ok) renderList(); });
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol !== 'file:'){

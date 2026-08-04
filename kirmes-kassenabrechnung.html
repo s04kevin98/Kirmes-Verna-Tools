@@ -216,6 +216,9 @@ const START = {500:0,200:0,100:0,50:0,20:5,10:5,5:10,2:25,1:25,0.5:0,0.2:40,0.1:
 const START_KLEIN = {500:0,200:0,100:0,50:0,20:0,10:0,5:2,2:10,1:20,0.5:0,0.2:0,0.1:0,0.05:0,0.02:0,0.01:0};
 const ROLLE = {2:25, 1:25, 0.5:40, 0.2:40, 0.1:40, 0.05:50, 0.02:50, 0.01:50};
 const STORAGE_KEY = 'kirmes-kassenabrechnung-verna';
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
 const TOLERANZ = 2;
 let kirmesName = '';
 
@@ -492,11 +495,13 @@ function verkaufSection(){
     </div>`;
 
     if(modus==='tablet'){
-      html += `<div class="verkauf-fields">
+      html += `<div class="verkauf-fields" style="align-items:flex-end;gap:14px;">
         <div class="field">
-          <label class="field-label">Umsatz laut Kassensystem</label>
+          <label class="field-label">Umsatz laut Kassen-App</label>
           <input type="number" min="0" step="0.01" value="${k.tabletUmsatz||''}" placeholder="0,00" oninput="onVerkauf('tabletUmsatz',this.value)" style="width:140px;"/>
         </div>
+        <button class="small" onclick="holeKassenAppUmsatz()">\u21bb Von Kassen-App abrufen</button>
+        <span style="font-size:12px;color:var(--text-muted);" id="kassenapp-sync-status">${k.tabletUmsatzZeit ? 'zuletzt abgerufen um '+k.tabletUmsatzZeit+' Uhr' : 'noch nicht abgerufen'}</span>
       </div>`;
     } else {
       html += `<div class="verkauf-fields">
@@ -686,6 +691,31 @@ function onVerkauf(field, val){
   refreshResults();
   scheduleSave();
 }
+async function holeKassenAppUmsatz(){
+  const k = currentKasse();
+  if(!k || k.type!=='bon') return;
+  const statusEl = document.getElementById('kassenapp-sync-status');
+  if(statusEl) statusEl.textContent = 'lädt …';
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?tag=eq.${encodeURIComponent(activeTag)}&select=summe`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    const summe = rows.reduce((s,r)=> s + (parseFloat(r.summe)||0), 0);
+    k.tabletUmsatz = summe;
+    k.tabletUmsatzZeit = jetzt();
+    const input = document.querySelector('.verkauf-fields input[type=number]');
+    if(input) input.value = summe || '';
+    if(statusEl) statusEl.textContent = 'zuletzt abgerufen um ' + k.tabletUmsatzZeit + ' Uhr';
+    refreshResults();
+    scheduleSave();
+  }catch(e){
+    if(statusEl) statusEl.textContent = 'keine Verbindung zur Kassen-App';
+  }
+}
+setInterval(()=>{
+  const k = currentKasse();
+  if(k && k.type==='bon' && k.bonModus==='tablet') holeKassenAppUmsatz();
+}, 20000);
 function onBonModus(modus){
   currentKasse().bonModus = modus;
   renderPanel();
