@@ -158,6 +158,7 @@
       </div>
       <span class="status" id="save-status" style="margin-left:auto;">&nbsp;</span>
       <span class="status" id="sync-badge" style="color:var(--warning-color,#8a5a1f);"></span>
+      <button class="small" id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
       <button class="menu-btn" onclick="openMenu()">☰ Statistik</button>
     </div>
   </header>
@@ -237,6 +238,17 @@ async function syncDelete(id){
   }catch(e){}
 }
 
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen().catch(()=>{});
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
 let wakeLock = null;
 async function requestWakeLock(){
   try{
