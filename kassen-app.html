@@ -105,9 +105,14 @@
   .modal-box .m-name{ font-family:var(--font-display); font-size:24px; margin-bottom:4px; }
   .modal-box .m-preis{ font-family:var(--font-num); color:var(--text-2); font-size:15px; margin-bottom:16px; }
   .m-qty-label{ display:block; font-size:12.5px; color:var(--text-2); margin-bottom:6px; }
-  .modal-box input{ width:100%; font-family:var(--font-num); font-size:28px; text-align:center; padding:10px; border:2px solid var(--line); border-radius:10px; margin-bottom:14px; }
-  .modal-quick{ display:flex; gap:8px; justify-content:center; margin-bottom:14px; flex-wrap:wrap; }
-  .modal-quick button{ padding:10px 16px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-size:15px; font-weight:600; }
+  .m-qty-display{ width:100%; font-family:var(--font-num); font-size:30px; font-weight:700; text-align:center; padding:10px; border:2px solid var(--forest); border-radius:10px; margin-bottom:12px; background:var(--forest-tint); color:var(--forest-dark); }
+  .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+  .keypad button{ padding:16px 0; font-size:20px; font-weight:600; border-radius:10px; border:1px solid var(--line); background:var(--paper); }
+  .keypad button:active{ background:var(--forest-tint); }
+  .keypad .keypad-clear{ color:var(--danger); }
+  .keypad .keypad-back{ font-size:18px; }
+  .modal-quick{ display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:14px; }
+  .modal-quick button{ padding:10px 2px; border-radius:8px; border:1px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; }
   .modal-actions{ display:flex; gap:10px; }
   .modal-actions button{ flex:1; padding:14px; border-radius:10px; font-size:16px; font-weight:700; border:none; }
   .modal-actions .m-cancel{ background:var(--paper); color:var(--text-2); border:1px solid var(--line); }
@@ -369,10 +374,14 @@ function closeModal(){
   modalArtikel = null;
   document.getElementById('modal-root').innerHTML = '';
 }
+let modalQtyStr = '1';
+let modalQtyFresh = true;
 function renderModal(){
   const root = document.getElementById('modal-root');
   if(!modalArtikel){ root.innerHTML=''; return; }
   const a = modalArtikel;
+  modalQtyStr = '1';
+  modalQtyFresh = true;
   root.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal();">
       <div class="modal-box">
@@ -381,8 +390,14 @@ function renderModal(){
         ${a.quick && a.quick.length ? `<div class="modal-quick">
           ${a.quick.map(n=>`<button onclick="setModalQty(${n})">${n}</button>`).join('')}
         </div>` : ''}
-        <label class="m-qty-label" for="modal-qty">${a.quick && a.quick.length ? 'oder eigene Menge:' : 'Menge:'}</label>
-        <input type="number" id="modal-qty" min="1" value="1" inputmode="numeric"/>
+        <label class="m-qty-label">${a.quick && a.quick.length ? 'oder eigene Menge:' : 'Menge:'}</label>
+        <div class="m-qty-display" id="modal-qty-display">1</div>
+        <div class="keypad">
+          <button onclick="keypadDigit('1')">1</button><button onclick="keypadDigit('2')">2</button><button onclick="keypadDigit('3')">3</button>
+          <button onclick="keypadDigit('4')">4</button><button onclick="keypadDigit('5')">5</button><button onclick="keypadDigit('6')">6</button>
+          <button onclick="keypadDigit('7')">7</button><button onclick="keypadDigit('8')">8</button><button onclick="keypadDigit('9')">9</button>
+          <button class="keypad-clear" onclick="keypadClear()">C</button><button onclick="keypadDigit('0')">0</button><button class="keypad-back" onclick="keypadBack()">\u232b</button>
+        </div>
         <div class="modal-actions">
           <button class="m-cancel" onclick="closeModal()">Abbrechen</button>
           <button class="m-add" onclick="confirmModal()">In Beleg legen</button>
@@ -390,12 +405,34 @@ function renderModal(){
       </div>
     </div>`;
 }
+function updateModalQtyDisplay(){
+  const el = document.getElementById('modal-qty-display');
+  if(el) el.textContent = modalQtyStr || '0';
+}
+function keypadDigit(d){
+  if(modalQtyFresh){ modalQtyStr = ''; modalQtyFresh = false; }
+  if(modalQtyStr.length >= 4) return;
+  modalQtyStr += d;
+  modalQtyStr = modalQtyStr.replace(/^0+(?=\d)/, '');
+  updateModalQtyDisplay();
+}
+function keypadBack(){
+  modalQtyStr = modalQtyStr.slice(0, -1);
+  modalQtyFresh = false;
+  updateModalQtyDisplay();
+}
+function keypadClear(){
+  modalQtyStr = '';
+  modalQtyFresh = false;
+  updateModalQtyDisplay();
+}
 function setModalQty(n){
-  document.getElementById('modal-qty').value = n;
+  modalQtyStr = String(n);
+  modalQtyFresh = true;
+  updateModalQtyDisplay();
 }
 function confirmModal(){
-  const input = document.getElementById('modal-qty');
-  let menge = parseInt(input.value) || 1;
+  let menge = parseInt(modalQtyStr) || 1;
   if(menge < 1) menge = 1;
   addToCart(modalArtikel.id, modalArtikel.name, modalArtikel.preis, menge);
   closeModal();
