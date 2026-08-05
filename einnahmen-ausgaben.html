@@ -138,6 +138,7 @@
   <div class="toolbar">
     <div class="actions">
       <button class="primary" onclick="printUebersicht()">Drucken</button>
+      <button id="fullscreen-btn" onclick="toggleFullscreen()">\u26f6 Vollbild</button>
       <button onclick="exportFile()">Datei speichern</button>
       <button onclick="document.getElementById('import-input').click()">Datei laden</button>
       <input type="file" id="import-input" accept="application/json" style="display:none;" onchange="importFile(this)"/>
@@ -559,6 +560,17 @@ function printUebersicht(){
 }
 
 document.getElementById('header-date').textContent = 'Stand: ' + new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen().catch(()=>{});
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
 loadState();
 document.getElementById('kirmes-name').value = kirmesName;
 renderAll();

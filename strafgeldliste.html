@@ -87,7 +87,12 @@
   .metric-card .value{ font-family:var(--font-num); font-size:21px; font-weight:700; }
 
   .member-card{ background:var(--paper-2); border:1px solid var(--line); border-radius:8px; margin-bottom:10px; overflow:hidden; }
-  .member-row{ display:grid; grid-template-columns:28px 1.8fr 1.2fr 0.9fr 0.9fr 1fr auto auto; gap:10px; align-items:center; padding:12px 16px; }
+  .member-row{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; padding:14px 16px; }
+  .mr-head{ display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 180px; }
+  .mr-head .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mr-stats{ display:flex; gap:18px; flex:0 0 auto; }
+  .mr-actions{ display:flex; gap:8px; flex:0 0 auto; margin-left:auto; }
+  .kaution-check{ flex:0 0 auto; }
   .member-row .name{ font-family:var(--font-display); font-size:16px; }
   .member-row .sub-label{ font-size:10.5px; color:var(--text-muted); letter-spacing:0.04em; text-transform:uppercase; display:block; margin-bottom:2px; }
   .member-row .val{ font-family:var(--font-num); font-size:15px; }
@@ -103,10 +108,12 @@
   .strafe-entry input[type=text]{ flex:1; min-width:180px; }
   .strafe-total{ font-size:13px; margin-top:6px; }
 
-  @media(max-width:760px){
-    .member-row{ grid-template-columns:24px 1fr; grid-auto-rows:auto; row-gap:6px; }
-    .member-row .name{ grid-column:2; }
-    .member-row > div:not(.name):not(:first-child){ grid-column:2; }
+  @media(max-width:480px){
+    .member-row{ flex-direction:column; align-items:stretch; }
+    .mr-head{ flex:1 1 auto; }
+    .mr-stats{ justify-content:space-between; }
+    .mr-actions{ margin-left:0; justify-content:stretch; }
+    .mr-actions button{ flex:1; }
   }
   footer.note{ text-align:center; font-size:12px; color:var(--text-muted); margin-top:30px; }
 </style>
@@ -128,6 +135,7 @@
   <div class="toolbar">
     <div class="actions">
       <button class="primary" onclick="printListe()">Drucken</button>
+      <button id="fullscreen-btn" onclick="toggleFullscreen()">\u26f6 Vollbild</button>
       <button onclick="exportFile()">Datei speichern</button>
       <button onclick="document.getElementById('import-input').click()">Datei laden</button>
       <input type="file" id="import-input" accept="application/json" style="display:none;" onchange="importFile(this)"/>
@@ -421,26 +429,32 @@ function memberRowHTML(m){
   return `
     <div class="member-card">
       <div class="member-row">
-        <button class="small" onclick="toggleExpand('${m.id}')" title="Strafen anzeigen">${m.expanded ? '\u2212' : '+'}</button>
-        <div class="name">${m.name}</div>
+        <div class="mr-head">
+          <button class="small" onclick="toggleExpand('${m.id}')" title="Strafen anzeigen">${m.expanded ? '\u2212' : '+'}</button>
+          <div class="name">${m.name}</div>
+        </div>
         <label class="kaution-check">
           <input type="checkbox" ${m.bezahlt?'checked':''} onchange="onToggleBezahlt('${m.id}', this.checked)"/>
           Kaution bezahlt (150 \u20ac)
         </label>
-        <div>
-          <span class="sub-label">Strafen gesamt</span>
-          <span class="val" id="sum-${m.id}">${fmt(strafenSum)}</span>
-        </div>
-        <div>
-          <span class="sub-label">Rückzahlung</span>
-          <span class="val ${rzClass}" id="rz-${m.id}">${fmt(rz)}</span>
+        <div class="mr-stats">
+          <div>
+            <span class="sub-label">Strafen gesamt</span>
+            <span class="val" id="sum-${m.id}">${fmt(strafenSum)}</span>
+          </div>
+          <div>
+            <span class="sub-label">Rückzahlung</span>
+            <span class="val ${rzClass}" id="rz-${m.id}">${fmt(rz)}</span>
+          </div>
         </div>
         <label class="kaution-check">
           <input type="checkbox" ${m.rueckgezahlt?'checked':''} onchange="onToggleRueckgezahlt('${m.id}', this.checked)"/>
           Rückgezahlt
         </label>
-        <button class="small" onclick="addStrafe('${m.id}')">+ Strafe</button>
-        <button class="small danger-btn" onclick="removeMitglied('${m.id}')">Entfernen</button>
+        <div class="mr-actions">
+          <button class="small" onclick="addStrafe('${m.id}')">+ Strafe</button>
+          <button class="small danger-btn" onclick="removeMitglied('${m.id}')">Entfernen</button>
+        </div>
       </div>
       <div class="strafen-panel ${m.expanded?'open':''}" id="panel-${m.id}">
         ${(m.strafen||[]).length === 0 ? '<div style="font-size:13px;color:var(--text-muted);">Noch keine Strafen eingetragen.</div>' : ''}
@@ -562,6 +576,17 @@ function printListe(){
 }
 
 document.getElementById('header-date').textContent = 'Stand: ' + jetzt();
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen().catch(()=>{});
+  }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
 loadState();
 renderList();
 loadFromCloud(true).then(ok => { if(ok) renderList(); });
