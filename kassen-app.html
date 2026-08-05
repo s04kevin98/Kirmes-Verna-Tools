@@ -88,7 +88,8 @@
   .cart-total .val{ font-size:28px; font-weight:700; color:var(--forest-dark); }
 
   .gegeben-row{ display:flex; gap:8px; align-items:center; margin-bottom:10px; }
-  .gegeben-row input{ flex:1; font-family:var(--font-num); font-size:18px; padding:10px; border:1px solid var(--line); border-radius:8px; text-align:right; }
+  .gegeben-display{ flex:1; font-family:var(--font-num); font-size:18px; padding:10px; border:1px solid var(--line); border-radius:8px; text-align:right; background:var(--paper-2); color:var(--text-muted); }
+  .gegeben-display.filled{ color:var(--ink); font-weight:700; }
   .rueckgeld-box{ text-align:right; margin-bottom:14px; padding:10px 12px; border-radius:8px; background:var(--forest-tint); }
   .rueckgeld-box .rg-lbl{ font-size:13px; color:var(--text-2); }
   .rueckgeld-box .rg-val{ font-family:var(--font-num); font-size:30px; font-weight:800; color:var(--success); }
@@ -185,7 +186,7 @@
       </div>
       <div class="gegeben-row">
         <label style="font-size:13px;color:var(--text-2);white-space:nowrap;">Gegeben</label>
-        <input type="number" min="0" step="0.5" id="gegeben-input" placeholder="optional" oninput="onGegeben(this.value)"/>
+        <button type="button" class="gegeben-display" id="gegeben-display" onclick="openGegebenModal()">optional</button>
       </div>
       <div class="rueckgeld-box" id="rueckgeld-box"><span class="rg-lbl">Rückgeld</span><br/><span class="rg-val" id="rueckgeld-val">–</span></div>
       <button class="checkout" id="checkout-btn" onclick="checkout()" disabled>Verkauf abschließen</button>
@@ -456,7 +457,7 @@ function removeLine(idx){
 function clearCart(){
   cart = [];
   gegeben = null;
-  document.getElementById('gegeben-input').value = '';
+  updateGegebenDisplay();
   renderCart();
 }
 function cartSumme(){ return cart.reduce((s,c)=> s + c.preis*c.menge, 0); }
@@ -487,9 +488,72 @@ function renderCart(){
   document.getElementById('checkout-btn').disabled = cart.length===0;
   updateRueckgeld();
 }
-function onGegeben(val){
-  gegeben = val === '' ? null : parseFloat(val);
+let gegebenStr = '';
+function openGegebenModal(){
+  gegebenStr = (gegeben===null || gegeben===undefined) ? '' : String(gegeben).replace('.',',');
+  renderGegebenModal();
+}
+function closeGegebenModal(){
+  document.getElementById('modal-root').innerHTML = '';
+}
+function renderGegebenModal(){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeGegebenModal();">
+      <div class="modal-box">
+        <div class="m-name">Gegeben</div>
+        <div class="m-preis">Betrag, den der Kunde gegeben hat</div>
+        <div class="m-qty-display" id="gegeben-modal-display">${gegebenStr || '0'} \u20ac</div>
+        <div class="keypad">
+          <button onclick="gegebenDigit('1')">1</button><button onclick="gegebenDigit('2')">2</button><button onclick="gegebenDigit('3')">3</button>
+          <button onclick="gegebenDigit('4')">4</button><button onclick="gegebenDigit('5')">5</button><button onclick="gegebenDigit('6')">6</button>
+          <button onclick="gegebenDigit('7')">7</button><button onclick="gegebenDigit('8')">8</button><button onclick="gegebenDigit('9')">9</button>
+          <button onclick="gegebenDigit(',')">,</button><button onclick="gegebenDigit('0')">0</button><button class="keypad-back" onclick="gegebenBack()">\u232b</button>
+        </div>
+        <div class="modal-actions">
+          <button class="m-cancel" onclick="gegebenLeeren()">Leeren</button>
+          <button class="m-add" onclick="confirmGegeben()">Übernehmen</button>
+        </div>
+      </div>
+    </div>`;
+}
+function gegebenDigit(d){
+  if(d===',' && gegebenStr.includes(',')) return;
+  if(d===',' && gegebenStr==='') gegebenStr='0';
+  const commaIdx = gegebenStr.indexOf(',');
+  if(commaIdx>=0 && gegebenStr.length - commaIdx > 2) return; // max 2 Nachkommastellen
+  if(gegebenStr.replace(',','').length >= 5) return;
+  gegebenStr += d;
+  document.getElementById('gegeben-modal-display').textContent = (gegebenStr || '0') + ' \u20ac';
+}
+function gegebenBack(){
+  gegebenStr = gegebenStr.slice(0, -1);
+  document.getElementById('gegeben-modal-display').textContent = (gegebenStr || '0') + ' \u20ac';
+}
+function gegebenLeeren(){
+  gegebenStr = '';
+  gegeben = null;
+  updateGegebenDisplay();
   updateRueckgeld();
+  closeGegebenModal();
+}
+function confirmGegeben(){
+  const num = parseFloat(gegebenStr.replace(',','.'));
+  gegeben = isNaN(num) ? null : num;
+  updateGegebenDisplay();
+  updateRueckgeld();
+  closeGegebenModal();
+}
+function updateGegebenDisplay(){
+  const el = document.getElementById('gegeben-display');
+  if(!el) return;
+  if(gegeben===null || gegeben===undefined || isNaN(gegeben)){
+    el.textContent = 'optional';
+    el.classList.remove('filled');
+  } else {
+    el.textContent = fmt(gegeben);
+    el.classList.add('filled');
+  }
 }
 function updateRueckgeld(){
   const box = document.getElementById('rueckgeld-box');
@@ -526,7 +590,7 @@ function checkout(){
   transactions.push(t);
   cart = [];
   gegeben = null;
-  document.getElementById('gegeben-input').value = '';
+  updateGegebenDisplay();
   renderCart();
   renderUndoBar();
   scheduleSave();
