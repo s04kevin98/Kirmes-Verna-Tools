@@ -163,7 +163,7 @@
     </table>
     <div class="add-btn-row">
       <button onclick="addEintrag('einnahme')">+ Einnahme hinzufügen</button>
-      <button onclick="importAusKassenApp()">\u21bb Aus Kassen-App importieren</button>
+      <button onclick="importAusKassenApp()">↻ Aus Kassenabrechnung importieren</button>
       <span style="font-size:12px;color:var(--text-muted);margin-left:8px;" id="kassenapp-import-status"></span>
     </div>
   </div>
@@ -265,29 +265,33 @@ async function importAusKassenApp(){
   const statusEl = document.getElementById('kassenapp-import-status');
   if(statusEl) statusEl.textContent = 'lädt …';
   try{
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?select=tag,summe`, { headers: SB_HEADERS });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kassenabrechnung_ergebnis?select=id,data`, { headers: SB_HEADERS });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const rows = await res.json();
-    const perTag = {};
-    rows.forEach(r=>{ perTag[r.tag] = (perTag[r.tag]||0) + (parseFloat(r.summe)||0); });
     let count = 0;
-    Object.keys(perTag).forEach(tag=>{
-      const fixedId = 'kassenapp-' + tag;
-      let e = eintraege.find(x=>x.id===fixedId);
-      if(!e){
-        e = { id: fixedId, art:'einnahme', datum: heuteISO(), bezeichnung: 'Kassen-App Verkäufe ' + tag, kategorie: 'Bon-/Getränkeverkauf', betrag: 0 };
-        eintraege.push(e);
-      }
-      e.betrag = perTag[tag];
-      syncUpsertEintrag(e);
-      count++;
+    rows.forEach(row=>{
+      const tag = row.id;
+      const kategorien = (row.data && row.data.kategorien) || {};
+      Object.keys(kategorien).forEach(kat=>{
+        const betrag = kategorien[kat];
+        if(!betrag) return;
+        const fixedId = 'kab-' + tag + '-' + kat.replace(/[^a-zA-Z0-9]/g,'');
+        let e = eintraege.find(x=>x.id===fixedId);
+        if(!e){
+          e = { id: fixedId, art:'einnahme', datum: heuteISO(), bezeichnung: kat + ' (' + tag + ', aus Kassenabrechnung)', kategorie: kat, betrag: 0 };
+          eintraege.push(e);
+        }
+        e.betrag = betrag;
+        syncUpsertEintrag(e);
+        count++;
+      });
     });
     renderAll();
     scheduleSave();
     const uhrzeit = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    if(statusEl) statusEl.textContent = count + ' Tag(e) importiert/aktualisiert um ' + uhrzeit + ' Uhr';
+    if(statusEl) statusEl.textContent = count + ' Position(en) aus der Kassenabrechnung importiert/aktualisiert um ' + uhrzeit + ' Uhr';
   }catch(e){
-    if(statusEl) statusEl.textContent = 'keine Verbindung zur Kassen-App';
+    if(statusEl) statusEl.textContent = 'keine Verbindung zur Kassenabrechnung';
   }
 }
 
