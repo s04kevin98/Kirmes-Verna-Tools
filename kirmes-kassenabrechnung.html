@@ -191,11 +191,11 @@
       <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
       <button onclick="exportFile()">Datei speichern</button>
       <button onclick="document.getElementById('import-input').click()">Datei laden</button>
-      <input type="file" id="import-input" accept="application/json" style="display:none;" onchange="importFile(this)"/>
+      <input type="file" id="import-input" accept="application/json,.json,text/plain" style="display:none;" onchange="importFile(this)"/>
       <button class="danger-btn" onclick="resetAll()">Neue Kirmes starten</button>
     </div>
   </div>
-  <div style="text-align:right;margin-top:-12px;margin-bottom:14px;"><span class="status" id="save-status">&nbsp;</span></div>
+  <div style="text-align:right;margin-top:-12px;margin-bottom:14px;"><span class="status" id="save-status">&nbsp;</span> <span class="status" id="cloud-badge" style="font-weight:600;"></span></div>
 
   <div class="tabs-kasse" id="kassen-tabs"></div>
   <div id="kasse-panel"></div>
@@ -263,6 +263,61 @@ let activeKasse = 0;
 let saveTimer = null;
 let pendingSave = false;
 
+let cloudOk = false;
+function updateCloudBadge(){
+  const el = document.getElementById('cloud-badge');
+  if(!el) return;
+  el.textContent = cloudOk ? '\u2601 Online \u2013 auf allen Geräten sichtbar' : '\u26a0 Offline \u2013 nur lokal gespeichert';
+  el.style.color = cloudOk ? 'var(--success,#2f6b46)' : 'var(--danger,#9c332c)';
+}
+async function loadFromCloud(silent){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/kassenabrechnung_state?id=eq.global&select=data`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    let hatteDaten = false;
+    if(rows.length > 0 && rows[0].data){
+      tage = rows[0].data.tage || tage;
+      kirmesName = rows[0].data.kirmesName || kirmesName;
+      reconcileTage();
+      hatteDaten = true;
+    }
+    cloudOk = true;
+    updateCloudBadge();
+    if(!silent) setStatus('Von Cloud geladen');
+    return { ok:true, hatteDaten };
+  }catch(e){
+    cloudOk = false;
+    updateCloudBadge();
+    return { ok:false, hatteDaten:false };
+  }
+}
+let stateSyncTimer = null;
+function scheduleStateSync(){
+  clearTimeout(stateSyncTimer);
+  stateSyncTimer = setTimeout(syncStateToCloud, 700);
+}
+async function syncStateToCloud(){
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/kassenabrechnung_state`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, { 'Prefer':'return=minimal,resolution=merge-duplicates' }),
+      body: JSON.stringify({ id:'global', data: { kirmesName, tage } })
+    });
+    cloudOk = true;
+  }catch(e){ cloudOk = false; }
+  updateCloudBadge();
+}
+function istEditingText(){
+  const el = document.activeElement;
+  return el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA') && el.type!=='checkbox' && el.type!=='radio';
+}
+setInterval(async ()=>{
+  if(istEditingText()) return;
+  const result = await loadFromCloud(true);
+  if(result.ok && result.hatteDaten) renderAll();
+}, 15000);
+
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -300,6 +355,7 @@ function scheduleSave(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 300);
   scheduleKabSync();
+  scheduleStateSync();
 }
 function kategorieVonKasse(k){
   if(k.type==='eintritt') return 'Eintrittsgelder';
@@ -395,6 +451,14 @@ function exportFile(){
   URL.revokeObjectURL(url);
   setStatus('Als Datei gespeichert');
 }
+function showImportToast(msg, isError){
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:${isError?'#9c332c':'#2f4a3c'};color:#fff;padding:14px 22px;border-radius:10px;font-size:14.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:10002;max-width:90vw;text-align:center;opacity:0;transition:opacity 0.2s;`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; });
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(), 250); }, 3200);
+}
 function importFile(input){
   const file = input.files[0];
   if(!file) return;
@@ -415,8 +479,10 @@ function importFile(input){
       renderAll();
       scheduleSave();
       setStatus('Datei geladen');
+      showImportToast('\u2713 Datei erfolgreich geladen: „' + (kirmesName || '(ohne Namen)') + '"', false);
     }catch(err){
       setStatus('Datei ungültig');
+      showImportToast('\u2717 Datei konnte nicht gelesen werden \u2013 falsches Format oder falsche Datei?', true);
     }
   };
   reader.readAsText(file);
@@ -993,6 +1059,16 @@ document.addEventListener('fullscreenchange', ()=>{
 loadState();
 document.getElementById('kirmes-name').value = kirmesName;
 renderAll();
+(async function initCloud(){
+  const result = await loadFromCloud(true);
+  if(result.ok && result.hatteDaten){
+    document.getElementById('kirmes-name').value = kirmesName;
+    renderAll();
+  } else if(result.ok && !result.hatteDaten){
+    // Cloud ist noch leer - unseren lokalen Stand direkt hochladen, damit andere Geräte ihn sehen
+    syncStateToCloud();
+  }
+})();
 </script>
 <script>
 if('serviceWorker' in navigator && location.protocol !== 'file:'){
