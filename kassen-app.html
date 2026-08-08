@@ -66,6 +66,7 @@
   @media(max-width:820px){ .main-grid{ grid-template-columns:1fr; } }
 
   .produkt-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin-bottom:20px; }
+  .rueckgabe-btn{ width:100%; padding:14px; font-size:14.5px; font-weight:600; border-radius:10px; border:1.5px dashed var(--danger); background:var(--danger-tint); color:var(--danger); margin-bottom:20px; }
   .produkt-btn{ background:var(--paper-2); border:2px solid var(--line); border-radius:16px; padding:34px 16px; text-align:center; cursor:pointer; transition:transform 0.08s, background 0.08s; }
   .produkt-btn:active{ transform:scale(0.96); background:var(--forest-tint); }
   .produkt-btn .name{ font-family:var(--font-display); font-size:24px; margin-bottom:10px; }
@@ -175,6 +176,7 @@
   <div class="main-grid">
     <div>
       <div class="produkt-grid" id="produkt-grid"></div>
+      <button class="rueckgabe-btn" onclick="openRueckgabeModal()">↩ Bons zurückgeben (gegen Bargeld)</button>
     </div>
 
     <div class="cart-card">
@@ -469,7 +471,18 @@ function renderCart(){
   if(cart.length===0){
     linesEl.innerHTML = '<div class="cart-empty">Noch nichts im Beleg.<br/>Artikel links antippen.</div>';
   } else {
-    linesEl.innerHTML = cart.map((c,i)=>`
+    linesEl.innerHTML = cart.map((c,i)=>{
+      if(c.istRueckgabe){
+        return `<div class="cart-line" style="background:var(--danger-tint);border-radius:8px;">
+          <div>
+            <div class="cl-name" style="color:var(--danger);">↩ ${c.name}</div>
+            <div class="cl-preis">${fmt(c.preis)} / Stk. &middot; ${Math.abs(c.menge)} Stk.</div>
+          </div>
+          <div class="cl-sum" style="color:var(--danger);">${fmt(c.preis*c.menge)}</div>
+          <button class="cl-del" onclick="removeLine(${i})" title="Entfernen">\u2715</button>
+        </div>`;
+      }
+      return `
       <div class="cart-line">
         <div>
           <div class="cl-name">${c.name}</div>
@@ -483,7 +496,8 @@ function renderCart(){
         <div class="cl-sum">${fmt(c.preis*c.menge)}</div>
         <button class="cl-del" onclick="removeLine(${i})" title="Entfernen">\u2715</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
   const summe = cartSumme();
   document.getElementById('cart-total').textContent = fmt(summe);
@@ -574,6 +588,71 @@ function updateRueckgeld(){
     box.className = 'rueckgeld-box';
     val.textContent = fmt(rueck);
   }
+}
+
+let rueckgabeQtyStr = '1';
+let rueckgabeFresh = true;
+function openRueckgabeModal(){
+  rueckgabeQtyStr = '1';
+  rueckgabeFresh = true;
+  renderRueckgabeModal();
+}
+function closeRueckgabeModal(){
+  document.getElementById('modal-root').innerHTML = '';
+}
+function renderRueckgabeModal(){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeRueckgabeModal();">
+      <div class="modal-box">
+        <div class="m-name" style="color:var(--danger);">↩ Bons zurückgeben</div>
+        <div class="m-preis">Wie viele Bons werden zurückgegeben? (1,80 € je Bon)</div>
+        <div class="m-qty-display" id="rueckgabe-qty-display" style="border-color:var(--danger);background:var(--danger-tint);color:var(--danger);">1</div>
+        <div class="keypad">
+          <button onclick="rueckgabeDigit('1')">1</button><button onclick="rueckgabeDigit('2')">2</button><button onclick="rueckgabeDigit('3')">3</button>
+          <button onclick="rueckgabeDigit('4')">4</button><button onclick="rueckgabeDigit('5')">5</button><button onclick="rueckgabeDigit('6')">6</button>
+          <button onclick="rueckgabeDigit('7')">7</button><button onclick="rueckgabeDigit('8')">8</button><button onclick="rueckgabeDigit('9')">9</button>
+          <button class="keypad-clear" onclick="rueckgabeClear()">C</button><button onclick="rueckgabeDigit('0')">0</button><button class="keypad-back" onclick="rueckgabeBack()">\u232b</button>
+        </div>
+        <div id="rueckgabe-betrag" style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Rückzahlbetrag: <strong style="color:var(--danger);">${fmt(1.8)}</strong></div>
+        <div class="modal-actions">
+          <button class="m-cancel" onclick="closeRueckgabeModal()">Abbrechen</button>
+          <button class="m-add" style="background:var(--danger);" onclick="confirmRueckgabe()">In Beleg legen</button>
+        </div>
+      </div>
+    </div>`;
+}
+function updateRueckgabeDisplay(){
+  const menge = parseInt(rueckgabeQtyStr) || 0;
+  document.getElementById('rueckgabe-qty-display').textContent = rueckgabeQtyStr || '0';
+  document.getElementById('rueckgabe-betrag').innerHTML = 'Rückzahlbetrag: <strong style="color:var(--danger);">' + fmt(menge*1.8) + '</strong>';
+}
+function rueckgabeDigit(d){
+  if(rueckgabeFresh){ rueckgabeQtyStr = ''; rueckgabeFresh = false; }
+  if(rueckgabeQtyStr.length >= 4) return;
+  rueckgabeQtyStr += d;
+  rueckgabeQtyStr = rueckgabeQtyStr.replace(/^0+(?=\d)/, '');
+  updateRueckgabeDisplay();
+}
+function rueckgabeBack(){
+  rueckgabeQtyStr = rueckgabeQtyStr.slice(0, -1);
+  rueckgabeFresh = false;
+  updateRueckgabeDisplay();
+}
+function rueckgabeClear(){
+  rueckgabeQtyStr = '';
+  rueckgabeFresh = false;
+  updateRueckgabeDisplay();
+}
+function confirmRueckgabe(){
+  let menge = parseInt(rueckgabeQtyStr) || 0;
+  if(menge < 1){ closeRueckgabeModal(); return; }
+  const existing = cart.find(c=>c.id==='bon_rueckgabe');
+  if(existing) existing.menge += -menge;
+  else cart.push({ id:'bon_rueckgabe', name:'Bon (Rückgabe)', preis:1.8, menge:-menge, istRueckgabe:true });
+  closeRueckgabeModal();
+  renderCart();
+  showToast(`↩ ${menge}×Bon-Rückgabe in den Beleg gelegt`);
 }
 
 function checkout(){
@@ -675,6 +754,11 @@ function renderMenuContent(){
   const list = gefiltert();
   const gesamt = list.reduce((s,t)=> s + t.summe, 0);
 
+  const verkaufe = list.filter(t=> t.summe >= 0);
+  const rueckgaben = list.filter(t=> t.summe < 0);
+  const stkVerkauft = verkaufe.reduce((s,t)=> s + t.items.reduce((s2,i)=>s2+i.menge,0), 0);
+  const stkRueckgabe = rueckgaben.reduce((s,t)=> s + t.items.reduce((s2,i)=>s2+Math.abs(i.menge),0), 0);
+
   const artikelMap = {};
   list.forEach(t=> t.items.forEach(it=>{
     if(!artikelMap[it.artikel]) artikelMap[it.artikel] = { menge:0, summe:0 };
@@ -691,9 +775,11 @@ function renderMenuContent(){
   </div>`;
 
   html += `<div class="summary-grid">
-    <div class="metric-card accent"><div class="label">Umsatz ${statFilter==='alle'?'gesamt':statFilter}</div><div class="value" style="font-size:26px;">${fmt(gesamt)}</div></div>
-    <div class="metric-card"><div class="label">Anzahl Belege</div><div class="value">${list.length}</div></div>
-    <div class="metric-card"><div class="label">Stück gesamt</div><div class="value">${Object.values(artikelMap).reduce((s,a)=>s+a.menge,0)}</div></div>
+    <div class="metric-card accent" style="grid-column:1/-1;"><div class="label">Umsatz ${statFilter==='alle'?'gesamt':statFilter} (netto)</div><div class="value" style="font-size:26px;">${fmt(gesamt)}</div></div>
+    <div class="metric-card"><div class="label">Belege – Verkäufe</div><div class="value">${verkaufe.length}</div></div>
+    <div class="metric-card"><div class="label">Belege – Rückgaben</div><div class="value">${rueckgaben.length}</div></div>
+    <div class="metric-card"><div class="label">Stück verkauft</div><div class="value">${stkVerkauft}</div></div>
+    <div class="metric-card"><div class="label">Stück zurückgegeben</div><div class="value">${stkRueckgabe}</div></div>
   </div>`;
 
   html += `<div class="chart-wrap"><div class="chart-title">Umsatz je Tag</div><div id="chart-tage"></div></div>`;

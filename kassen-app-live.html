@@ -150,6 +150,11 @@ function render(){
   const list = gefiltert();
   const gesamt = list.reduce((s,t)=> s + t.summe, 0);
 
+  const verkaufe = list.filter(t=> t.summe >= 0);
+  const rueckgaben = list.filter(t=> t.summe < 0);
+  const stkVerkauft = verkaufe.reduce((s,t)=> s + t.items.reduce((s2,i)=>s2+i.menge,0), 0);
+  const stkRueckgabe = rueckgaben.reduce((s,t)=> s + t.items.reduce((s2,i)=>s2+Math.abs(i.menge),0), 0);
+
   const artikelMap = {};
   list.forEach(t=> t.items.forEach(it=>{
     if(!artikelMap[it.artikel]) artikelMap[it.artikel] = { menge:0, summe:0 };
@@ -168,9 +173,11 @@ function render(){
 
   content.innerHTML = `
     <div class="summary-grid">
-      <div class="metric-card accent"><div class="label">Umsatz ${statFilter==='alle'?'gesamt':statFilter}</div><div class="value">${fmt(gesamt)}</div></div>
-      <div class="metric-card"><div class="label">Anzahl Belege</div><div class="value">${list.length}</div></div>
-      <div class="metric-card"><div class="label">Stück gesamt</div><div class="value">${Object.values(artikelMap).reduce((s,a)=>s+a.menge,0)}</div></div>
+      <div class="metric-card accent" style="grid-column:1/-1;"><div class="label">Umsatz ${statFilter==='alle'?'gesamt':statFilter} (netto)</div><div class="value">${fmt(gesamt)}</div></div>
+      <div class="metric-card"><div class="label">Belege – Verkäufe</div><div class="value">${verkaufe.length}</div></div>
+      <div class="metric-card"><div class="label">Belege – Rückgaben</div><div class="value">${rueckgaben.length}</div></div>
+      <div class="metric-card"><div class="label">Stück verkauft</div><div class="value">${stkVerkauft}</div></div>
+      <div class="metric-card"><div class="label">Stück zurückgegeben</div><div class="value">${stkRueckgabe}</div></div>
     </div>
     <div class="insight-box"><div class="insight-label">\ud83d\udcca Automatische Einschätzung</div><div class="insight-text">${einschaetzung(tagesUmsatz)}</div></div>
     <div class="chart-wrap"><div class="chart-title">Umsatz je Tag</div><div id="chart-tage"></div></div>
