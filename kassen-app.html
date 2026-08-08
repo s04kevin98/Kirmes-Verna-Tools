@@ -66,7 +66,8 @@
   @media(max-width:820px){ .main-grid{ grid-template-columns:1fr; } }
 
   .produkt-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin-bottom:20px; }
-  .rueckgabe-btn{ width:100%; padding:14px; font-size:14.5px; font-weight:600; border-radius:10px; border:1.5px dashed var(--danger); background:var(--danger-tint); color:var(--danger); margin-bottom:20px; }
+  .rueckgabe-btn{ width:100%; padding:14px; font-size:14.5px; font-weight:600; border-radius:10px; border:1.5px dashed var(--danger); background:var(--danger-tint); color:var(--danger); margin-bottom:12px; }
+  .trinkgeld-btn{ width:100%; padding:14px; font-size:14.5px; font-weight:600; border-radius:10px; border:1.5px dashed var(--gold); background:var(--gold-tint); color:var(--gold); margin-bottom:20px; }
   .produkt-btn{ background:var(--paper-2); border:2px solid var(--line); border-radius:16px; padding:34px 16px; text-align:center; cursor:pointer; transition:transform 0.08s, background 0.08s; }
   .produkt-btn:active{ transform:scale(0.96); background:var(--forest-tint); }
   .produkt-btn .name{ font-family:var(--font-display); font-size:24px; margin-bottom:10px; }
@@ -100,6 +101,8 @@
   button.checkout{ width:100%; background:var(--forest); color:#fff; border:none; border-radius:10px; padding:18px; font-size:18px; font-weight:700; cursor:pointer; }
   button.checkout:disabled{ background:var(--line); color:var(--text-muted); cursor:not-allowed; }
   button.checkout:active:not(:disabled){ background:var(--forest-dark); }
+  button.checkout-keep{ width:100%; background:var(--gold); color:#fff; border:none; border-radius:10px; padding:12px; font-size:13.5px; font-weight:600; cursor:pointer; margin-top:8px; }
+  button.checkout-keep:active{ opacity:0.85; }
   button.clear-cart{ width:100%; margin-top:8px; padding:10px; font-size:13.5px; background:none; border:1px solid var(--line); border-radius:8px; color:var(--text-2); }
 
   .modal-overlay{ position:fixed; inset:0; background:rgba(27,42,34,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px; }
@@ -177,6 +180,7 @@
     <div>
       <div class="produkt-grid" id="produkt-grid"></div>
       <button class="rueckgabe-btn" onclick="openRueckgabeModal()">↩ Bons zurückgeben (gegen Bargeld)</button>
+      <button class="trinkgeld-btn" onclick="openTrinkgeldModal()">💶 Trinkgeld erfassen</button>
     </div>
 
     <div class="cart-card">
@@ -192,6 +196,7 @@
       </div>
       <div class="rueckgeld-box" id="rueckgeld-box"><span class="rg-lbl">Rückgeld</span><br/><span class="rg-val" id="rueckgeld-val">–</span></div>
       <button class="checkout" id="checkout-btn" onclick="checkout()" disabled>Verkauf abschließen</button>
+      <button class="checkout-keep" id="checkout-keep-btn" onclick="checkoutKeepChange()" disabled style="display:none;">Verkauf abschließen, Rückgeld behalten</button>
       <button class="clear-cart" onclick="clearCart()">Beleg leeren</button>
     </div>
   </div>
@@ -275,7 +280,8 @@ const ARTIKEL = [
   { id:'mbon', name:'Mitglieder-Bon', preis:1.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[1,5,10,20,25,50,100] },
   { id:'fass', name:'Fass', preis:180.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] },
   { id:'eistee', name:'Eistee-Korn Kanister', preis:75.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] },
-  { id:'apfelwein', name:'Kiste Apfelwein (inkl. 1 Cola gratis)', preis:75.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] }
+  { id:'apfelwein', name:'Kiste Apfelwein (inkl. 1 Cola gratis)', preis:75.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] },
+  { id:'flasche', name:'1 Flasche', preis:9.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] }
 ];
 
 let currentTag = 'Freitag';
@@ -482,6 +488,15 @@ function renderCart(){
           <button class="cl-del" onclick="removeLine(${i})" title="Entfernen">\u2715</button>
         </div>`;
       }
+      if(c.istTrinkgeld){
+        return `<div class="cart-line" style="background:var(--gold-tint);border-radius:8px;">
+          <div>
+            <div class="cl-name" style="color:var(--gold);">💶 ${c.name}</div>
+          </div>
+          <div class="cl-sum" style="color:var(--gold);">${fmt(c.preis)}</div>
+          <button class="cl-del" onclick="removeLine(${i})" title="Entfernen">\u2715</button>
+        </div>`;
+      }
       return `
       <div class="cart-line">
         <div>
@@ -574,47 +589,86 @@ function updateGegebenDisplay(){
 function updateRueckgeld(){
   const box = document.getElementById('rueckgeld-box');
   const val = document.getElementById('rueckgeld-val');
+  const keepBtn = document.getElementById('checkout-keep-btn');
   const summe = cartSumme();
   if(gegeben===null || isNaN(gegeben)){
     box.className = 'rueckgeld-box';
     val.textContent = '\u2013';
+    if(keepBtn) keepBtn.style.display = 'none';
     return;
   }
   const rueck = gegeben - summe;
   if(rueck < 0){
     box.className = 'rueckgeld-box warn';
     val.textContent = 'fehlt ' + fmt(Math.abs(rueck));
+    if(keepBtn) keepBtn.style.display = 'none';
   } else {
     box.className = 'rueckgeld-box';
     val.textContent = fmt(rueck);
+    if(keepBtn){
+      if(rueck > 0 && cart.length > 0){
+        keepBtn.style.display = 'block';
+        keepBtn.disabled = false;
+        keepBtn.textContent = `Verkauf abschließen, ${fmt(rueck)} Rückgeld behalten`;
+      } else {
+        keepBtn.style.display = 'none';
+      }
+    }
   }
 }
-
+function checkoutKeepChange(){
+  if(cart.length===0 || gegeben===null || isNaN(gegeben)) return;
+  const summeVorher = cartSumme();
+  const rueck = gegeben - summeVorher;
+  if(rueck > 0){
+    const existing = cart.find(c=>c.id==='trinkgeld');
+    if(existing) existing.preis += rueck;
+    else cart.push({ id:'trinkgeld', name:'Trinkgeld (Rückgeld behalten)', preis:rueck, menge:1, istTrinkgeld:true });
+  }
+  checkout();
+}
 let rueckgabeQtyStr = '1';
 let rueckgabeFresh = true;
+let rueckgabeArtikel = 'bon';
+const RUECKGABE_PREISE = { bon: 1.80, mbon: 1.00 };
+const RUECKGABE_NAMEN = { bon: 'Bon', mbon: 'Mitglieder-Bon' };
 function openRueckgabeModal(){
   rueckgabeQtyStr = '1';
   rueckgabeFresh = true;
+  rueckgabeArtikel = 'bon';
   renderRueckgabeModal();
 }
 function closeRueckgabeModal(){
   document.getElementById('modal-root').innerHTML = '';
 }
+function setRueckgabeArtikel(a){
+  rueckgabeArtikel = a;
+  rueckgabeQtyStr = '1';
+  rueckgabeFresh = true;
+  renderRueckgabeModal();
+}
 function renderRueckgabeModal(){
   const root = document.getElementById('modal-root');
+  const preis = RUECKGABE_PREISE[rueckgabeArtikel];
+  const menge = parseInt(rueckgabeQtyStr) || 0;
   root.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeRueckgabeModal();">
       <div class="modal-box">
         <div class="m-name" style="color:var(--danger);">↩ Bons zurückgeben</div>
-        <div class="m-preis">Wie viele Bons werden zurückgegeben? (1,80 € je Bon)</div>
-        <div class="m-qty-display" id="rueckgabe-qty-display" style="border-color:var(--danger);background:var(--danger-tint);color:var(--danger);">1</div>
+        <div class="m-preis">Welcher Bon wird zurückgegeben?</div>
+        <div class="modal-quick" style="grid-template-columns:1fr 1fr;margin-bottom:12px;">
+          <button style="${rueckgabeArtikel==='bon'?'background:var(--danger);color:#fff;border-color:var(--danger);':''}" onclick="setRueckgabeArtikel('bon')">Bon (1,80 €)</button>
+          <button style="${rueckgabeArtikel==='mbon'?'background:var(--danger);color:#fff;border-color:var(--danger);':''}" onclick="setRueckgabeArtikel('mbon')">Mitglieder-Bon (1,00 €)</button>
+        </div>
+        <div class="m-preis">Wie viele Stück?</div>
+        <div class="m-qty-display" id="rueckgabe-qty-display" style="border-color:var(--danger);background:var(--danger-tint);color:var(--danger);">${rueckgabeQtyStr || '0'}</div>
         <div class="keypad">
           <button onclick="rueckgabeDigit('1')">1</button><button onclick="rueckgabeDigit('2')">2</button><button onclick="rueckgabeDigit('3')">3</button>
           <button onclick="rueckgabeDigit('4')">4</button><button onclick="rueckgabeDigit('5')">5</button><button onclick="rueckgabeDigit('6')">6</button>
           <button onclick="rueckgabeDigit('7')">7</button><button onclick="rueckgabeDigit('8')">8</button><button onclick="rueckgabeDigit('9')">9</button>
           <button class="keypad-clear" onclick="rueckgabeClear()">C</button><button onclick="rueckgabeDigit('0')">0</button><button class="keypad-back" onclick="rueckgabeBack()">\u232b</button>
         </div>
-        <div id="rueckgabe-betrag" style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Rückzahlbetrag: <strong style="color:var(--danger);">${fmt(1.8)}</strong></div>
+        <div id="rueckgabe-betrag" style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Rückzahlbetrag: <strong style="color:var(--danger);">${fmt(menge*preis)}</strong></div>
         <div class="modal-actions">
           <button class="m-cancel" onclick="closeRueckgabeModal()">Abbrechen</button>
           <button class="m-add" style="background:var(--danger);" onclick="confirmRueckgabe()">In Beleg legen</button>
@@ -624,8 +678,9 @@ function renderRueckgabeModal(){
 }
 function updateRueckgabeDisplay(){
   const menge = parseInt(rueckgabeQtyStr) || 0;
+  const preis = RUECKGABE_PREISE[rueckgabeArtikel];
   document.getElementById('rueckgabe-qty-display').textContent = rueckgabeQtyStr || '0';
-  document.getElementById('rueckgabe-betrag').innerHTML = 'Rückzahlbetrag: <strong style="color:var(--danger);">' + fmt(menge*1.8) + '</strong>';
+  document.getElementById('rueckgabe-betrag').innerHTML = 'Rückzahlbetrag: <strong style="color:var(--danger);">' + fmt(menge*preis) + '</strong>';
 }
 function rueckgabeDigit(d){
   if(rueckgabeFresh){ rueckgabeQtyStr = ''; rueckgabeFresh = false; }
@@ -647,12 +702,68 @@ function rueckgabeClear(){
 function confirmRueckgabe(){
   let menge = parseInt(rueckgabeQtyStr) || 0;
   if(menge < 1){ closeRueckgabeModal(); return; }
-  const existing = cart.find(c=>c.id==='bon_rueckgabe');
+  const preis = RUECKGABE_PREISE[rueckgabeArtikel];
+  const name = RUECKGABE_NAMEN[rueckgabeArtikel];
+  const cartId = rueckgabeArtikel + '_rueckgabe';
+  const existing = cart.find(c=>c.id===cartId);
   if(existing) existing.menge += -menge;
-  else cart.push({ id:'bon_rueckgabe', name:'Bon (Rückgabe)', preis:1.8, menge:-menge, istRueckgabe:true });
+  else cart.push({ id:cartId, name:`${name} (Rückgabe)`, preis:preis, menge:-menge, istRueckgabe:true });
   closeRueckgabeModal();
   renderCart();
-  showToast(`↩ ${menge}×Bon-Rückgabe in den Beleg gelegt`);
+  showToast(`↩ ${menge}×${name}-Rückgabe in den Beleg gelegt`);
+}
+
+let trinkgeldStr = '';
+function openTrinkgeldModal(){
+  trinkgeldStr = '';
+  renderTrinkgeldModal();
+}
+function closeTrinkgeldModal(){
+  document.getElementById('modal-root').innerHTML = '';
+}
+function renderTrinkgeldModal(){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeTrinkgeldModal();">
+      <div class="modal-box">
+        <div class="m-name" style="color:var(--gold);">💶 Trinkgeld</div>
+        <div class="m-preis">Betrag, den der Kunde als Trinkgeld dagelassen hat</div>
+        <div class="m-qty-display" id="trinkgeld-display" style="border-color:var(--gold);background:var(--gold-tint);color:var(--gold);">${trinkgeldStr || '0'} \u20ac</div>
+        <div class="keypad">
+          <button onclick="trinkgeldDigit('1')">1</button><button onclick="trinkgeldDigit('2')">2</button><button onclick="trinkgeldDigit('3')">3</button>
+          <button onclick="trinkgeldDigit('4')">4</button><button onclick="trinkgeldDigit('5')">5</button><button onclick="trinkgeldDigit('6')">6</button>
+          <button onclick="trinkgeldDigit('7')">7</button><button onclick="trinkgeldDigit('8')">8</button><button onclick="trinkgeldDigit('9')">9</button>
+          <button onclick="trinkgeldDigit(',')">,</button><button onclick="trinkgeldDigit('0')">0</button><button class="keypad-back" onclick="trinkgeldBack()">\u232b</button>
+        </div>
+        <div class="modal-actions">
+          <button class="m-cancel" onclick="closeTrinkgeldModal()">Abbrechen</button>
+          <button class="m-add" style="background:var(--gold);" onclick="confirmTrinkgeld()">In Beleg legen</button>
+        </div>
+      </div>
+    </div>`;
+}
+function trinkgeldDigit(d){
+  if(d===',' && trinkgeldStr.includes(',')) return;
+  if(d===',' && trinkgeldStr==='') trinkgeldStr='0';
+  const commaIdx = trinkgeldStr.indexOf(',');
+  if(commaIdx>=0 && trinkgeldStr.length - commaIdx > 2) return;
+  if(trinkgeldStr.replace(',','').length >= 5) return;
+  trinkgeldStr += d;
+  document.getElementById('trinkgeld-display').textContent = (trinkgeldStr || '0') + ' \u20ac';
+}
+function trinkgeldBack(){
+  trinkgeldStr = trinkgeldStr.slice(0, -1);
+  document.getElementById('trinkgeld-display').textContent = (trinkgeldStr || '0') + ' \u20ac';
+}
+function confirmTrinkgeld(){
+  const betrag = parseFloat(trinkgeldStr.replace(',','.'));
+  if(!betrag || betrag <= 0){ closeTrinkgeldModal(); return; }
+  const existing = cart.find(c=>c.id==='trinkgeld');
+  if(existing) existing.preis += betrag;
+  else cart.push({ id:'trinkgeld', name:'Trinkgeld', preis:betrag, menge:1, istTrinkgeld:true });
+  closeTrinkgeldModal();
+  renderCart();
+  showToast(`💶 Trinkgeld ${fmt(betrag)} in den Beleg gelegt`);
 }
 
 function checkout(){
