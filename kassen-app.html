@@ -224,8 +224,9 @@ async function syncOne(t){
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     t.synced = true;
+    cloudLastCheckOk = true;
     scheduleSave();
-  }catch(e){ /* offline - bleibt in der Warteschlange, wird spaeter automatisch nachgeholt */ }
+  }catch(e){ cloudLastCheckOk = false; /* offline - bleibt in der Warteschlange, wird spaeter automatisch nachgeholt */ }
   updateSyncBadge();
 }
 async function syncUnsent(){
@@ -237,9 +238,27 @@ function updateSyncBadge(){
   const offen = transactions.filter(t=> t.synced===false).length;
   const el = document.getElementById('sync-badge');
   if(!el) return;
-  if(offen===0){ el.textContent = ''; return; }
-  el.textContent = `${offen} Verkauf${offen===1?'':'e'} ${offen===1?'wartet':'warten'} auf Internetverbindung zum Synchronisieren`;
+  if(offen===0){
+    el.textContent = cloudLastCheckOk ? '\u2601 Online' : '\u26a0 Offline';
+    el.style.color = cloudLastCheckOk ? 'var(--success)' : 'var(--danger)';
+  } else {
+    el.textContent = `${offen} Verkauf${offen===1?'':'e'} ${offen===1?'wartet':'warten'} auf Internetverbindung`;
+    el.style.color = 'var(--danger)';
+  }
 }
+let cloudLastCheckOk = false;
+async function checkCloudConnectivity(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?select=id&limit=1`, {
+      headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY }
+    });
+    cloudLastCheckOk = res.ok;
+  }catch(e){ cloudLastCheckOk = false; }
+  updateSyncBadge();
+}
+setInterval(checkCloudConnectivity, 20000);
+window.addEventListener('online', checkCloudConnectivity);
+window.addEventListener('offline', ()=>{ cloudLastCheckOk=false; updateSyncBadge(); });
 window.addEventListener('online', syncUnsent);
 setInterval(syncUnsent, 20000);
 async function syncInsert(t){ await syncOne(t); }
@@ -1053,6 +1072,7 @@ renderCart();
 renderUndoBar();
 requestWakeLock();
 updateSyncBadge();
+checkCloudConnectivity();
 syncUnsent();
 </script>
 <script>
