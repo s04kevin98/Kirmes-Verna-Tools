@@ -623,7 +623,7 @@ function checkoutKeepChange(){
   if(rueck > 0){
     const existing = cart.find(c=>c.id==='trinkgeld');
     if(existing) existing.preis += rueck;
-    else cart.push({ id:'trinkgeld', name:'Trinkgeld (Rückgeld behalten)', preis:rueck, menge:1, istTrinkgeld:true });
+    else cart.push({ id:'trinkgeld', name:'Trinkgeld', preis:rueck, menge:1, istTrinkgeld:true });
   }
   checkout();
 }
