@@ -75,6 +75,17 @@
     <button class="fullscreen-btn-corner" id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
   </header>
 
+  <div class="panel" style="border-color:var(--gold);">
+    <h2>📒 Laufende Bestellungen (Tab führen)</h2>
+    <div class="sub" style="font-size:12.5px;color:var(--text-2);margin-bottom:14px;">Für Kunden, die mehrmals am Abend bestellen: Tab öffnen, Positionen nach und nach hinzufügen, am Ende als eine Rechnung abschließen.</div>
+    <div class="field-row">
+      <div class="field"><label>Kundenname für neuen Tab</label><input type="text" id="tab-neu-kunde" placeholder="z. B. Burschenschaft Musteria"/></div>
+      <div class="field"><label>Anschrift (optional)</label><input type="text" id="tab-neu-adresse" placeholder="Straße, PLZ Ort"/></div>
+    </div>
+    <button class="secondary" onclick="tabOeffnen()">+ Neuen Tab öffnen</button>
+    <div id="tabs-liste" style="margin-top:16px;"></div>
+  </div>
+
   <div class="panel">
     <h2>Empfänger &amp; Angaben</h2>
     <div class="field-row">
@@ -129,6 +140,14 @@
     <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">Diese Angaben merkt sich der Browser auf diesem Gerät für nächstes Mal.</div>
   </div>
 
+  <div class="panel">
+    <h2>Unterschriften</h2>
+    <div class="field-row">
+      <div class="field"><label>Name Vorsitzender</label><input type="text" id="f-vorsitzender" placeholder="z. B. Sebastian Wiegand"/></div>
+      <div class="field"><label>Name Kassierer</label><input type="text" id="f-kassierer" placeholder="z. B. Kevin Kunz"/></div>
+    </div>
+  </div>
+
   <div class="btn-row">
     <button class="primary" onclick="rechnungErstellen()">📄 Rechnung erstellen (PDF)</button>
     <button class="secondary" onclick="emailVorbereiten()">✉ E-Mail vorbereiten</button>
@@ -146,6 +165,103 @@
 const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
 const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
+
+let tabs = [];
+function tabNewId(){ return 'tab_' + Date.now().toString(36) + '_' + Math.floor(Math.random()*1000); }
+
+async function ladeTabs(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rechnung_tabs?status=eq.offen&select=*&order=created_at.desc`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error();
+    tabs = await res.json();
+  }catch(e){ /* offline - bestehende lokale Anzeige bleibt */ }
+  renderTabs();
+}
+async function tabSync(t){
+  try{ await fetch(`${SUPABASE_URL}/rest/v1/rechnung_tabs`, {
+    method:'POST',
+    headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+    body: JSON.stringify(t)
+  }); }catch(e){}
+}
+
+function tabOeffnen(){
+  const kunde = document.getElementById('tab-neu-kunde').value.trim();
+  if(!kunde){ showToast('\u2717 Bitte Kundenname eingeben', true); return; }
+  const t = { id: tabNewId(), kunde, adresse: document.getElementById('tab-neu-adresse').value.trim(), positionen: [], status:'offen' };
+  tabs.unshift(t);
+  document.getElementById('tab-neu-kunde').value = '';
+  document.getElementById('tab-neu-adresse').value = '';
+  renderTabs();
+  tabSync(t);
+  showToast('\u2713 Tab für "'+kunde+'" geöffnet');
+}
+function tabPositionHinzufuegen(id){
+  const bez = document.getElementById('tab-pos-bez-'+id).value.trim();
+  const betrag = parseFloat(document.getElementById('tab-pos-betrag-'+id).value.replace(',','.'));
+  if(!bez || !betrag){ showToast('\u2717 Bitte Bezeichnung und Betrag eingeben', true); return; }
+  const t = tabs.find(x=>x.id===id);
+  if(!t) return;
+  t.positionen.push({ bez, menge:1, preis:betrag });
+  renderTabs();
+  tabSync(t);
+}
+function tabPositionEntfernen(id, idx){
+  const t = tabs.find(x=>x.id===id);
+  if(!t) return;
+  t.positionen.splice(idx,1);
+  renderTabs();
+  tabSync(t);
+}
+async function tabSchliessen(id){
+  const t = tabs.find(x=>x.id===id);
+  if(!t) return;
+  if(!confirm('Tab wirklich löschen (ohne Rechnung)? Das kann nicht rückgängig gemacht werden.')) return;
+  tabs = tabs.filter(x=>x.id!==id);
+  renderTabs();
+  try{ await fetch(`${SUPABASE_URL}/rest/v1/rechnung_tabs?id=eq.${id}`, { method:'DELETE', headers: SB_HEADERS }); }catch(e){}
+}
+async function tabAbschliessenUndRechnung(id){
+  const t = tabs.find(x=>x.id===id);
+  if(!t || t.positionen.length===0){ showToast('\u2717 Tab hat noch keine Positionen', true); return; }
+  document.getElementById('f-empfaenger-name').value = t.kunde;
+  document.getElementById('f-empfaenger-adresse').value = t.adresse||'';
+  document.getElementById('f-betreff').value = 'Sammelrechnung – mehrere Bestellungen';
+  positionen = t.positionen.map(p=>({ bez:p.bez, menge:p.menge, preis:p.preis }));
+  renderPositionen();
+  t.status = 'abgeschlossen';
+  tabs = tabs.filter(x=>x.id!==id);
+  renderTabs();
+  tabSync(t);
+  document.querySelector('.panel:nth-of-type(2)')?.scrollIntoView({behavior:'smooth'});
+  showToast('\u2713 Tab übernommen \u2013 unten prüfen und Rechnung erstellen');
+}
+
+function tabSumme(t){ return t.positionen.reduce((s,p)=>s+p.menge*p.preis,0); }
+function renderTabs(){
+  const el = document.getElementById('tabs-liste');
+  if(tabs.length===0){ el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Keine offenen Tabs.</div>'; return; }
+  el.innerHTML = tabs.map(t=>`
+    <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <div style="font-weight:700;font-size:14px;color:var(--forest-dark);">${t.kunde}</div>
+        <div style="font-family:var(--font-num);font-weight:700;">${fmt(tabSumme(t))}</div>
+      </div>
+      ${t.positionen.length>0 ? `<div style="font-size:12.5px;margin-bottom:8px;">${t.positionen.map((p,i)=>`<div style="display:flex;justify-content:space-between;padding:2px 0;">
+        <span>${p.bez}</span><span>${fmt(p.preis)} <button onclick="tabPositionEntfernen('${t.id}',${i})" style="border:none;background:none;color:var(--danger);cursor:pointer;">\u2715</button></span>
+      </div>`).join('')}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <input type="text" id="tab-pos-bez-${t.id}" placeholder="z. B. 1x Fass" style="flex:2;min-width:100px;padding:7px 8px;border:1px solid var(--line);border-radius:5px;font-size:13px;"/>
+        <input type="number" step="0.01" id="tab-pos-betrag-${t.id}" placeholder="Betrag" style="flex:1;min-width:80px;padding:7px 8px;border:1px solid var(--line);border-radius:5px;font-size:13px;"/>
+        <button onclick="tabPositionHinzufuegen('${t.id}')" style="padding:7px 12px;border-radius:5px;border:1px solid var(--line);background:var(--paper-2);font-size:12.5px;">+ Position</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="tabAbschliessenUndRechnung('${t.id}')" style="flex:1;padding:9px;border-radius:6px;border:none;background:var(--forest);color:#fff;font-size:12.5px;font-weight:600;">\u2713 Abschließen & Rechnung erstellen</button>
+        <button onclick="tabSchliessen('${t.id}')" style="padding:9px 12px;border-radius:6px;border:1px solid var(--danger-tint);background:var(--paper-2);color:var(--danger);font-size:12.5px;">Löschen</button>
+      </div>
+    </div>
+  `).join('');
+}
 
 let positionen = [{ bez:'', menge:1, preis:0 }];
 let naechsteNummer = 1;
@@ -199,15 +315,23 @@ function renderSumme(){
 }
 
 function ladeBankdaten(){
+  const echteVorbelegung = {
+    inhaber: 'Burschenschaft Verna',
+    bank: 'VR-PartnerBank eG Chattengau-Schwalm-Eder',
+    iban: 'DE59 5206 2601 0004 1429 00',
+    bic: 'GENODEF1HRV',
+    vorsitzender: 'Sebastian Wiegand',
+    kassierer: 'Kevin Kunz'
+  };
   try{
     const raw = localStorage.getItem('verna-rechnung-bank');
-    if(raw){
-      const d = JSON.parse(raw);
-      document.getElementById('f-bank-inhaber').value = d.inhaber||'';
-      document.getElementById('f-bank-name').value = d.bank||'';
-      document.getElementById('f-iban').value = d.iban||'';
-      document.getElementById('f-bic').value = d.bic||'';
-    }
+    const d = raw ? JSON.parse(raw) : echteVorbelegung;
+    document.getElementById('f-bank-inhaber').value = d.inhaber||'';
+    document.getElementById('f-bank-name').value = d.bank||'';
+    document.getElementById('f-iban').value = d.iban||'';
+    document.getElementById('f-bic').value = d.bic||'';
+    document.getElementById('f-vorsitzender').value = d.vorsitzender||'';
+    document.getElementById('f-kassierer').value = d.kassierer||'';
   }catch(e){}
 }
 function speicherBankdaten(){
@@ -215,7 +339,9 @@ function speicherBankdaten(){
     inhaber: document.getElementById('f-bank-inhaber').value,
     bank: document.getElementById('f-bank-name').value,
     iban: document.getElementById('f-iban').value,
-    bic: document.getElementById('f-bic').value
+    bic: document.getElementById('f-bic').value,
+    vorsitzender: document.getElementById('f-vorsitzender').value,
+    kassierer: document.getElementById('f-kassierer').value
   };
   try{ localStorage.setItem('verna-rechnung-bank', JSON.stringify(d)); }catch(e){}
 }
@@ -243,7 +369,9 @@ function sammleDaten(){
     bankInhaber: document.getElementById('f-bank-inhaber').value,
     bankName: document.getElementById('f-bank-name').value,
     iban: document.getElementById('f-iban').value,
-    bic: document.getElementById('f-bic').value
+    bic: document.getElementById('f-bic').value,
+    vorsitzender: document.getElementById('f-vorsitzender').value,
+    kassierer: document.getElementById('f-kassierer').value
   };
 }
 
@@ -253,50 +381,95 @@ function rechnungHTML(d){
   const ust = netto*satz;
   const gesamt = netto+ust;
   const logoSrc = document.getElementById('logo-img-src').value;
-  const rows = d.positionen.map(p=>`<tr><td>${p.bez||'-'}</td><td class="num">${p.menge}</td><td class="num">${fmt(p.preis)}</td><td class="num">${fmt(p.menge*p.preis)}</td></tr>`).join('');
+  const rows = d.positionen.map((p,i)=>`<tr><td>${i+1}</td><td>${p.bez||'-'}</td><td class="num">${fmt(p.preis)}</td><td class="num">${p.menge}</td><td class="num">${fmt(p.menge*p.preis)}</td></tr>`).join('');
+  const ustZeile = d.ustModus==='keine' ? 'zzgl. 0% Umsatzsteuer' : `zzgl. ${d.ustModus}% Umsatzsteuer`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rechnung ${d.nummer}</title>
   <style>
-    @page{ size:A4; margin:20mm; }
-    body{ font-family:Arial,sans-serif; color:#1a1a1a; font-size:12px; }
-    .head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; }
-    .head img{ height:50px; }
-    .head .org{ text-align:right; font-size:11px; color:#333; }
-    .empf{ margin-bottom:30px; font-size:12px; }
-    h1{ font-size:20px; margin:0 0 4px; }
-    .meta{ font-size:11px; color:#555; margin-bottom:24px; }
-    table{ width:100%; border-collapse:collapse; margin-bottom:6px; }
-    thead th{ text-align:left; border-bottom:2px solid #1a1a1a; padding:6px 8px; font-size:11px; text-transform:uppercase; }
-    td{ padding:6px 8px; border-bottom:1px solid #ddd; }
+    @page{ size:A4; margin:18mm 20mm; }
+    *{ box-sizing:border-box; }
+    body{ font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#242a26; font-size:10.5pt; line-height:1.45; }
+    .head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; padding-bottom:16px; border-bottom:2.5px solid #2f4a3c; }
+    .head img{ height:46px; }
+    .head .verein-name{ font-family:Georgia,'Times New Roman',serif; font-weight:700; font-size:13pt; color:#1f332a; margin-top:6px; }
+    .org-block{ text-align:right; font-size:9pt; color:#5c6b60; line-height:1.6; padding-top:2px; }
+    .empf-row{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:28px; }
+    .empf{ font-size:10.5pt; line-height:1.6; }
+    .empf .kl{ font-size:8pt; color:#8a9188; margin-bottom:6px; }
+    .re-meta{ text-align:right; font-size:9.5pt; color:#5c6b60; line-height:1.8; }
+    .re-meta .nr{ font-family:'SF Mono',Consolas,monospace; color:#1f332a; font-weight:700; font-size:10.5pt; }
+    h1{ font-family:Georgia,'Times New Roman',serif; font-size:22pt; font-weight:700; margin:0 0 22px; color:#1f332a; }
+    .betreff{ font-size:10.5pt; margin-bottom:16px; color:#242a26; }
+    table.pos-table{ width:100%; border-collapse:collapse; margin-bottom:0; }
+    table.pos-table thead th{ text-align:left; background:#e7ede8; color:#1f332a; padding:8px 10px; font-size:8.5pt; text-transform:uppercase; letter-spacing:0.03em; font-weight:700; }
+    table.pos-table thead th:first-child{ border-radius:5px 0 0 5px; }
+    table.pos-table thead th:last-child{ border-radius:0 5px 5px 0; }
+    table.pos-table td{ padding:9px 10px; border-bottom:1px solid #eae2cc; font-size:10pt; }
     .num{ text-align:right; }
-    .summen{ margin-top:10px; width:280px; margin-left:auto; }
-    .summen div{ display:flex; justify-content:space-between; padding:3px 8px; font-size:12px; }
-    .summen .gesamt{ font-weight:700; font-size:15px; border-top:2px solid #1a1a1a; padding-top:6px; }
-    .footer{ margin-top:40px; font-size:11px; color:#333; line-height:1.6; }
-    .zahlung{ margin-top:20px; padding:12px 14px; background:#f5f5f5; border-radius:6px; font-size:11.5px; }
+    .summen-table{ width:280px; margin-left:auto; margin-top:10px; }
+    .summen-table td{ padding:4px 10px; font-size:10pt; color:#5c6b60; }
+    .summen-table tr.gesamt td{ font-weight:700; font-size:12pt; color:#1f332a; background:#e7ede8; border-radius:5px; padding:10px; }
+    .fliesstext{ margin-top:30px; font-size:10pt; line-height:1.7; color:#3a423d; }
+    .signatur{ margin-top:40px; display:flex; gap:60px; font-size:9.5pt; }
+    .signatur .linie{ border-top:1px solid #1f332a; margin-top:32px; padding-top:5px; min-width:150px; }
+    .signatur .name{ font-weight:700; color:#1f332a; }
+    .footer{ margin-top:36px; font-size:8.5pt; color:#8a9188; display:flex; justify-content:space-between; border-top:0.75px solid #ddd3ba; padding-top:12px; }
+    .footer .fcol{ line-height:1.7; }
+    .footer .fcol b{ color:#5c6b60; }
   </style></head><body>
     <div class="head">
-      <img src="${logoSrc}"/>
-      <div class="org">Burschenschaft Verna<br/>internes Kassenwerkzeug</div>
+      <div>
+        <img src="${logoSrc}"/>
+      </div>
+      <div class="org-block">
+        <strong style="color:#1f332a;font-size:10pt;">Burschenschaft Verna</strong><br/>
+        Frankfurter Str. 14<br/>
+        D-34621 Frielendorf<br/>
+        burschenschaftverna1920@gmail.com
+      </div>
     </div>
-    <div class="empf">${(d.empfaengerName||'').replace(/\\n/g,'<br/>')}<br/>${(d.empfaengerAdresse||'').replace(/\\n/g,'<br/>')}</div>
+    <div class="empf-row">
+      <div class="empf">
+        <div class="kl">Burschenschaft Verna &middot; Frankfurter Str. 14 &middot; D-34621 Frielendorf</div>
+        ${(d.empfaengerName||'').replace(/\\n/g,'<br/>')}<br/>${(d.empfaengerAdresse||'').replace(/\\n/g,'<br/>')}
+      </div>
+      <div class="re-meta">
+        Rechnungsnummer<br/><span class="nr">${d.nummer}</span><br/>
+        ${d.datum}
+      </div>
+    </div>
     <h1>Rechnung</h1>
-    <div class="meta">Rechnungsnummer: <strong>${d.nummer}</strong> &nbsp;&middot;&nbsp; Datum: ${d.datum}<br/>${d.betreff?('Betreff: '+d.betreff):''}</div>
-    <table>
-      <thead><tr><th>Bezeichnung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Summe</th></tr></thead>
+    ${d.betreff ? `<div class="betreff">${d.betreff}</div>` : ''}
+    <table class="pos-table">
+      <thead><tr><th>#</th><th>Beschreibung</th><th class="num">Einzelpreis</th><th class="num">Anzahl</th><th class="num">Gesamtpreis</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="summen">
-      ${d.ustModus!=='keine' ? `<div><span>Netto</span><span>${fmt(netto)}</span></div><div><span>zzgl. ${d.ustModus}% USt.</span><span>${fmt(ust)}</span></div>` : ''}
-      <div class="gesamt"><span>Gesamtbetrag</span><span>${fmt(gesamt)}</span></div>
+    <table class="summen-table">
+      <tr><td>Summe der Nettobeträge</td><td class="num">${fmt(netto)}</td></tr>
+      <tr><td>${ustZeile}</td><td class="num">${fmt(ust)}</td></tr>
+      <tr class="gesamt"><td>Gesamtbetrag</td><td class="num">${fmt(gesamt)}</td></tr>
+    </table>
+    <div class="fliesstext">
+      Wir bitten Sie, den Gesamtbetrag innerhalb von ${d.zahlungsziel} auf unser unten angegebenes Konto zu überweisen. Das Leistungsdatum entspricht dem Rechnungsdatum.<br/><br/>
+      ${d.ustModus==='keine' ? 'Die in Rechnung gestellten Lieferungen und Leistungen sind gemäß § 19 UStG umsatzsteuerfrei.<br/><br/>' : ''}
+      Für weitere Fragen stehen wir Ihnen zur Verfügung.<br/><br/>
+      Mit freundlichen Grüßen
     </div>
-    ${d.ustModus==='keine' ? '<div style="font-size:10.5px;color:#555;margin-top:6px;">Gemäß § 19 UStG (Kleinunternehmerregelung) wird keine Umsatzsteuer ausgewiesen.</div>' : ''}
-    <div class="zahlung">
-      Zahlbar: ${d.zahlungsziel}<br/>
-      Kontoinhaber: ${d.bankInhaber}<br/>
-      IBAN: ${d.iban} &nbsp; BIC: ${d.bic}<br/>
-      Bank: ${d.bankName}
+    <div class="signatur">
+      <div class="linie"><span class="name">${d.vorsitzender}</span><br/>Vorsitzender</div>
+      <div class="linie"><span class="name">${d.kassierer}</span><br/>Kassierer</div>
     </div>
-    <div class="footer">Vielen Dank!<br/>Burschenschaft Verna</div>
+    <div class="footer">
+      <div class="fcol">
+        <b>Burschenschaft Verna</b><br/>
+        Vorsitzender: ${d.vorsitzender}<br/>
+        Kassierer: ${d.kassierer}
+      </div>
+      <div class="fcol" style="text-align:right;">
+        <b>${d.bankName}</b><br/>
+        IBAN: ${d.iban}<br/>
+        BIC: ${d.bic}
+      </div>
+    </div>
   </body></html>`;
 }
 
@@ -377,6 +550,12 @@ function fuelleAusURLParametern(){
 
 document.getElementById('f-datum').value = new Date().toISOString().slice(0,10);
 ladeBankdaten();
+ladeTabs();
+setInterval(()=>{
+  const el = document.activeElement;
+  if(el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA')) return;
+  ladeTabs();
+}, 15000);
 renderPositionen();
 fuelleAusURLParametern();
 ladeNaechsteNummer();
