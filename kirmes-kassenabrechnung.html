@@ -189,6 +189,7 @@
     <div class="actions">
       <button class="primary" onclick="printSummary()">Drucken</button>
       <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
+      <button id="status-btn" onclick="openStatusUebersicht()" style="position:relative;">📋 Status-Übersicht<span id="status-badge" style="display:none;position:absolute;top:-8px;right:-8px;background:var(--danger,#9c332c);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700;"></span></button>
       <button onclick="exportFile()">Datei speichern</button>
       <button onclick="document.getElementById('import-input').click()">Datei laden</button>
       <input type="file" id="import-input" accept="application/json,.json,text/plain" style="display:none;" onchange="importFile(this)"/>
@@ -252,7 +253,7 @@ function frischeTage(){
     'Freitag': [ newBonkasse(true), newEintritt('Eintritt 1 (20-22:30)', 10), newEintritt('Eintritt 2 (22:30-00:30)', 10) ],
     'Samstag': [ newBonkasse(false), newEintritt('Eintritt 1 (20-22:30)', 8), newEintritt('Eintritt 2 (22:30-00:30)', 8), newSpende('Ständchen Gruppe 1'), newSpende('Ständchen Gruppe 2') ],
     'Sonntag': [ newBonkasse(false), newSpende('Kuchenspenden') ],
-    'Montag':  [ newBonkasse(false), newEintritt('Eintritt 1 (20-22:30)', 5), newEintritt('Eintritt 2 (22:30-00:30)', 5) ]
+    'Montag':  [ newBonkasse(false), newEintritt('Eintritt 1 (20-22:30)', 5), newEintritt('Eintritt 2 (22:30-00:30)', 5), newSpende('Dorfumzug-Spende') ]
   };
 }
 
@@ -347,6 +348,11 @@ function reconcileTage(){
         if(!Array.isArray(k.verkaufsLog)) k.verkaufsLog = [];
       }
     });
+    // Migration: Montag-Dorfumzug-Spendenkasse nachtraeglich ergaenzen, falls sie in bereits
+    // gespeicherten Daten noch fehlt (wurde erst nachtraeglich hinzugefuegt)
+    if(t==='Montag' && !tage[t].some(k=>k.name==='Dorfumzug-Spende')){
+      tage[t].push(newSpende('Dorfumzug-Spende'));
+    }
   });
 }
 function scheduleSave(){
@@ -514,10 +520,73 @@ function endeErfasst(k){ return sumDenoms(k.ende) > 0; }
 function currentKasse(){ return (tage[activeTag]||[])[activeKasse]; }
 function tagesUmsatz(t){ return (tage[t]||[]).reduce((s,k)=> s + istUmsatz(k), 0); }
 
+function alleKassenStatus(){
+  const result = [];
+  tagNamen.forEach(t=>{
+    (tage[t]||[]).forEach((k, idx)=>{
+      let status, farbe, text;
+      if(k.versiegeltZeitstempel){
+        status='ok'; farbe='var(--success,#2f6b46)'; text='\u2713 Versiegelt um '+k.versiegeltZeitstempel+' Uhr';
+      } else if(k.endeZeitstempel){
+        status='warn'; farbe='var(--warning,#8a5a1f)'; text='\u26a0 Gezählt ('+k.endeZeitstempel+' Uhr), aber nicht versiegelt';
+      } else {
+        status='fehlt'; farbe='var(--danger,#9c332c)'; text='\u2717 Noch nicht bearbeitet';
+      }
+      result.push({ tag:t, kasseIdx:idx, name:k.name, status, farbe, text });
+    });
+  });
+  return result;
+}
+function updateStatusBadge(){
+  const badge = document.getElementById('status-badge');
+  if(!badge) return;
+  const offen = alleKassenStatus().filter(s=>s.status!=='ok').length;
+  if(offen>0){ badge.style.display='inline-block'; badge.textContent=offen; }
+  else{ badge.style.display='none'; }
+}
+function openStatusUebersicht(){
+  const alle = alleKassenStatus();
+  const rows = alle.map(s=>`
+    <tr>
+      <td style="padding:8px 10px;border-top:1px solid var(--line);">${s.tag}</td>
+      <td style="padding:8px 10px;border-top:1px solid var(--line);">${s.name}</td>
+      <td style="padding:8px 10px;border-top:1px solid var(--line);color:${s.farbe};font-weight:600;">${s.text}</td>
+      <td style="padding:8px 10px;border-top:1px solid var(--line);text-align:right;">
+        <button class="small" onclick="springeZuKasse('${s.tag}',${s.kasseIdx})">Öffnen</button>
+      </td>
+    </tr>`).join('');
+  const offen = alle.filter(s=>s.status!=='ok').length;
+  const overlay = document.createElement('div');
+  overlay.id = 'status-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(27,42,34,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;';
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--paper-2);border-radius:14px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:22px 24px;box-shadow:0 14px 40px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-family:var(--font-display);font-size:19px;color:var(--forest-dark);">Status-Übersicht</div>
+        <button onclick="document.getElementById('status-overlay').remove();" style="background:none;border:none;font-size:20px;cursor:pointer;">\u2715</button>
+      </div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:14px;">${offen===0 ? 'Alle Kassen sind versiegelt \u2013 nichts offen.' : offen+' Kasse(n) noch nicht abgeschlossen.'}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:var(--forest-tint);"><th style="text-align:left;padding:8px 10px;">Tag</th><th style="text-align:left;padding:8px 10px;">Kasse</th><th style="text-align:left;padding:8px 10px;">Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+function springeZuKasse(tag, kasseIdx){
+  activeTag = tag;
+  activeKasse = kasseIdx;
+  const overlay = document.getElementById('status-overlay');
+  if(overlay) overlay.remove();
+  renderAll();
+}
+
 function renderAll(){
   renderTagTabs();
   renderKassenTabs();
   renderPanel();
+  updateStatusBadge();
 }
 
 function renderTagTabs(){

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rechnung erstellen – Burschenschaft Verna</title>
+<style>
+  :root{
+    --ink:#1b2a22; --paper:#faf7ef; --paper-2:#ffffff; --line:#ddd3ba; --line-soft:#eae2cc;
+    --forest:#2f4a3c; --forest-dark:#1f332a; --forest-tint:#e7ede8; --gold:#8a6a2f; --gold-tint:#f2ead4;
+    --danger:#9c332c; --danger-tint:#f6e6e4; --success:#2f6b46; --text-2:#5c6b60; --text-muted:#8a9188;
+    --font-display:Georgia,'Times New Roman',serif; --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-num:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background-color:var(--paper); background-image:repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(47,74,60,0.05) 28px); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.5; padding:0 0 50px; }
+  .wrap{ max-width:820px; margin:0 auto; padding:0 16px; }
+  .back-strip{ background:var(--forest-dark); text-align:center; padding:8px 0; }
+  .back-strip a{ color:#e7ede8; font-size:12.5px; text-decoration:none; }
+  header.masthead{ background:var(--paper-2); border-bottom:3px solid var(--forest); padding:14px 0; margin-bottom:18px; position:relative; }
+  header .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding-right:120px; }
+  header img{ height:40px; }
+  header h1{ font-family:var(--font-display); font-size:19px; font-weight:700; margin:0; color:var(--forest-dark); }
+  header .eyebrow{ font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); font-weight:600; margin:0; }
+  .fullscreen-btn-corner{ position:absolute; top:16px; right:16px; font-size:12px; padding:8px 12px; border-radius:6px; border:1px solid var(--line); background:var(--paper-2); color:var(--ink); }
+
+  .panel{ background:var(--paper-2); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .panel h2{ font-family:var(--font-display); font-size:16px; margin:0 0 12px; color:var(--forest-dark); }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  @media(max-width:560px){ .field-row{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field label{ font-size:12px; color:var(--text-2); font-weight:600; }
+  .field input, .field textarea, .field select{ padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-size:14px; font-family:inherit; }
+  .field textarea{ resize:vertical; min-height:50px; }
+
+  table.pos{ width:100%; border-collapse:collapse; margin-bottom:12px; }
+  table.pos th{ text-align:left; font-size:11px; text-transform:uppercase; color:var(--text-2); padding:4px 6px; }
+  table.pos td{ padding:4px 6px; }
+  table.pos input{ width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:5px; font-size:13.5px; }
+  table.pos .num-col{ width:70px; }
+  table.pos .preis-col{ width:90px; }
+  table.pos .sum-col{ width:90px; text-align:right; font-family:var(--font-num); font-size:13.5px; }
+  table.pos .del-col{ width:30px; }
+  table.pos .del-col button{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:15px; }
+
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  button.primary{ background:var(--forest); color:#fff; border:none; padding:12px 18px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  button.secondary{ background:var(--paper); color:var(--ink); border:1px solid var(--line); padding:10px 16px; border-radius:8px; font-size:13.5px; cursor:pointer; }
+
+  .summe-box{ text-align:right; padding:12px 0; border-top:2px solid var(--forest); margin-top:6px; }
+  .summe-box .gesamt{ font-size:22px; font-weight:700; color:var(--forest-dark); font-family:var(--font-num); }
+
+  .liste-item{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; background:var(--paper); font-size:13px; flex-wrap:wrap; gap:6px; }
+  .liste-item .re-num{ font-family:var(--font-num); font-weight:700; color:var(--gold); }
+  .liste-item button{ font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--line); background:var(--paper-2); cursor:pointer; }
+
+  .status{ font-size:11px; color:var(--text-muted); }
+  footer.note{ text-align:center; font-size:11.5px; color:var(--text-muted); margin-top:30px; }
+</style>
+</head>
+<body>
+<div class="back-strip"><a href="./kirmes-hub.html">&larr; Zurück zur Kirmes-Übersicht</a></div>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="row">
+      <img alt="Logo Burschenschaft Verna" src="data:image/png;base64,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"/>
+      <div>
+        <p class="eyebrow">Burschenschaft Verna</p>
+        <h1>Rechnung erstellen</h1>
+      </div>
+      <span class="status" id="save-status" style="margin-left:auto;"></span>
+    </div>
+    <button class="fullscreen-btn-corner" id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
+  </header>
+
+  <div class="panel">
+    <h2>Empfänger &amp; Angaben</h2>
+    <div class="field-row">
+      <div class="field"><label>Rechnungsnummer</label><input type="text" id="f-nummer"/></div>
+      <div class="field"><label>Rechnungsdatum</label><input type="date" id="f-datum"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Empfänger (Firma / Verein / Name)</label><input type="text" id="f-empfaenger-name" placeholder="z. B. Musterfirma GmbH"/></div>
+      <div class="field"><label>Zahlungsziel</label><input type="text" id="f-zahlungsziel" value="14 Tage nach Erhalt, ohne Abzug"/></div>
+    </div>
+    <div class="field"><label>Anschrift Empfänger</label><textarea id="f-empfaenger-adresse" placeholder="Straße Hausnummer&#10;PLZ Ort"></textarea></div>
+    <div class="field" style="margin-top:12px;"><label>Betreff / Leistungsbeschreibung (allgemein)</label><input type="text" id="f-betreff" placeholder="z. B. Werbefläche Kirmeszelt 2026, oder: Warenlieferung Kirmes 2026"/></div>
+  </div>
+
+  <div class="panel">
+    <h2>Positionen</h2>
+    <table class="pos" id="pos-table">
+      <thead><tr><th>Bezeichnung</th><th class="num-col">Menge</th><th class="preis-col">Einzelpreis</th><th class="sum-col">Summe</th><th class="del-col"></th></tr></thead>
+      <tbody id="pos-body"></tbody>
+    </table>
+    <button class="secondary" onclick="addPosition()">+ Position hinzufügen</button>
+
+    <div class="field-row" style="margin-top:16px;">
+      <div class="field">
+        <label>Umsatzsteuer</label>
+        <select id="f-ust-modus" onchange="renderSumme()">
+          <option value="keine">Keine Umsatzsteuer ausgewiesen (z. B. Kleinunternehmerregelung)</option>
+          <option value="19">zzgl. 19 % USt.</option>
+          <option value="7">zzgl. 7 % USt.</option>
+        </select>
+      </div>
+      <div></div>
+    </div>
+
+    <div class="summe-box">
+      <div style="font-size:13px;color:var(--text-2);" id="summe-netto-zeile"></div>
+      <div style="font-size:13px;color:var(--text-2);" id="summe-ust-zeile"></div>
+      <div class="gesamt" id="summe-gesamt">0,00 €</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Bankverbindung (für die Rechnung)</h2>
+    <div class="field-row">
+      <div class="field"><label>Kontoinhaber</label><input type="text" id="f-bank-inhaber" placeholder="Burschenschaft Verna"/></div>
+      <div class="field"><label>Bank</label><input type="text" id="f-bank-name" placeholder="z. B. Sparkasse Musterstadt"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>IBAN</label><input type="text" id="f-iban" placeholder="DE00 0000 0000 0000 0000 00"/></div>
+      <div class="field"><label>BIC</label><input type="text" id="f-bic" placeholder="XXXXXXXX"/></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">Diese Angaben merkt sich der Browser auf diesem Gerät für nächstes Mal.</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="primary" onclick="rechnungErstellen()">📄 Rechnung erstellen (PDF)</button>
+    <button class="secondary" onclick="emailVorbereiten()">✉ E-Mail vorbereiten</button>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <h2>Bisherige Rechnungen</h2>
+    <div id="rechnungs-liste"></div>
+  </div>
+
+  <footer class="note">Burschenschaft Verna &middot; internes Kassenwerkzeug &middot; nicht für externe Weitergabe<br/>Hinweis: Bitte die steuerliche Behandlung (USt.-Ausweis) im Zweifel mit einem Steuerberater abstimmen.</footer>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
+
+let positionen = [{ bez:'', menge:1, preis:0 }];
+let naechsteNummer = 1;
+
+function fmt(v){ return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0) + ' €'; }
+function setStatus(t){ document.getElementById('save-status').textContent = t; }
+function showToast(msg, isError){
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:${isError?'#9c332c':'#2f4a3c'};color:#fff;padding:14px 22px;border-radius:10px;font-size:14.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:10002;max-width:90vw;text-align:center;opacity:0;transition:opacity 0.2s;`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; });
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(), 250); }, 3200);
+}
+
+function addPosition(){
+  positionen.push({ bez:'', menge:1, preis:0 });
+  renderPositionen();
+}
+function removePosition(i){
+  positionen.splice(i,1);
+  if(positionen.length===0) positionen.push({ bez:'', menge:1, preis:0 });
+  renderPositionen();
+}
+function onPosChange(i, feld, val){
+  if(feld==='bez') positionen[i].bez = val;
+  else positionen[i][feld] = parseFloat(val.replace(',','.')) || 0;
+  renderSumme();
+}
+function renderPositionen(){
+  document.getElementById('pos-body').innerHTML = positionen.map((p,i)=>`
+    <tr>
+      <td><input type="text" value="${p.bez}" placeholder="z. B. Bierfass" oninput="onPosChange(${i},'bez',this.value)"/></td>
+      <td class="num-col"><input type="number" min="0" step="1" value="${p.menge}" oninput="onPosChange(${i},'menge',this.value)"/></td>
+      <td class="preis-col"><input type="number" min="0" step="0.01" value="${p.preis}" oninput="onPosChange(${i},'preis',this.value)"/></td>
+      <td class="sum-col" id="sum-${i}">${fmt(p.menge*p.preis)}</td>
+      <td class="del-col"><button onclick="removePosition(${i})">\u2715</button></td>
+    </tr>`).join('');
+  renderSumme();
+}
+function nettoSumme(){ return positionen.reduce((s,p)=> s + (p.menge*p.preis), 0); }
+function renderSumme(){
+  positionen.forEach((p,i)=>{ const el=document.getElementById('sum-'+i); if(el) el.textContent = fmt(p.menge*p.preis); });
+  const netto = nettoSumme();
+  const modus = document.getElementById('f-ust-modus').value;
+  const satz = modus==='19' ? 0.19 : modus==='7' ? 0.07 : 0;
+  const ust = netto*satz;
+  document.getElementById('summe-netto-zeile').textContent = modus==='keine' ? '' : 'Netto: '+fmt(netto);
+  document.getElementById('summe-ust-zeile').textContent = modus==='keine' ? '' : `zzgl. ${modus} % USt.: ${fmt(ust)}`;
+  document.getElementById('summe-gesamt').textContent = fmt(netto+ust);
+}
+
+function ladeBankdaten(){
+  try{
+    const raw = localStorage.getItem('verna-rechnung-bank');
+    if(raw){
+      const d = JSON.parse(raw);
+      document.getElementById('f-bank-inhaber').value = d.inhaber||'';
+      document.getElementById('f-bank-name').value = d.bank||'';
+      document.getElementById('f-iban').value = d.iban||'';
+      document.getElementById('f-bic').value = d.bic||'';
+    }
+  }catch(e){}
+}
+function speicherBankdaten(){
+  const d = {
+    inhaber: document.getElementById('f-bank-inhaber').value,
+    bank: document.getElementById('f-bank-name').value,
+    iban: document.getElementById('f-iban').value,
+    bic: document.getElementById('f-bic').value
+  };
+  try{ localStorage.setItem('verna-rechnung-bank', JSON.stringify(d)); }catch(e){}
+}
+
+async function ladeNaechsteNummer(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rechnungen?select=nummer&order=nummer.desc&limit=1`, { headers: SB_HEADERS });
+    const rows = await res.json();
+    naechsteNummer = rows.length>0 ? rows[0].nummer+1 : 1;
+  }catch(e){ naechsteNummer = 1; }
+  const jahr = new Date().getFullYear();
+  document.getElementById('f-nummer').value = `${jahr}-${String(naechsteNummer).padStart(3,'0')}`;
+}
+
+function sammleDaten(){
+  return {
+    nummer: document.getElementById('f-nummer').value,
+    datum: document.getElementById('f-datum').value,
+    empfaengerName: document.getElementById('f-empfaenger-name').value,
+    empfaengerAdresse: document.getElementById('f-empfaenger-adresse').value,
+    zahlungsziel: document.getElementById('f-zahlungsziel').value,
+    betreff: document.getElementById('f-betreff').value,
+    positionen: positionen,
+    ustModus: document.getElementById('f-ust-modus').value,
+    bankInhaber: document.getElementById('f-bank-inhaber').value,
+    bankName: document.getElementById('f-bank-name').value,
+    iban: document.getElementById('f-iban').value,
+    bic: document.getElementById('f-bic').value
+  };
+}
+
+function rechnungHTML(d){
+  const netto = d.positionen.reduce((s,p)=>s+p.menge*p.preis,0);
+  const satz = d.ustModus==='19'?0.19:d.ustModus==='7'?0.07:0;
+  const ust = netto*satz;
+  const gesamt = netto+ust;
+  const logoSrc = document.getElementById('logo-img-src').value;
+  const rows = d.positionen.map(p=>`<tr><td>${p.bez||'-'}</td><td class="num">${p.menge}</td><td class="num">${fmt(p.preis)}</td><td class="num">${fmt(p.menge*p.preis)}</td></tr>`).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rechnung ${d.nummer}</title>
+  <style>
+    @page{ size:A4; margin:20mm; }
+    body{ font-family:Arial,sans-serif; color:#1a1a1a; font-size:12px; }
+    .head{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; }
+    .head img{ height:50px; }
+    .head .org{ text-align:right; font-size:11px; color:#333; }
+    .empf{ margin-bottom:30px; font-size:12px; }
+    h1{ font-size:20px; margin:0 0 4px; }
+    .meta{ font-size:11px; color:#555; margin-bottom:24px; }
+    table{ width:100%; border-collapse:collapse; margin-bottom:6px; }
+    thead th{ text-align:left; border-bottom:2px solid #1a1a1a; padding:6px 8px; font-size:11px; text-transform:uppercase; }
+    td{ padding:6px 8px; border-bottom:1px solid #ddd; }
+    .num{ text-align:right; }
+    .summen{ margin-top:10px; width:280px; margin-left:auto; }
+    .summen div{ display:flex; justify-content:space-between; padding:3px 8px; font-size:12px; }
+    .summen .gesamt{ font-weight:700; font-size:15px; border-top:2px solid #1a1a1a; padding-top:6px; }
+    .footer{ margin-top:40px; font-size:11px; color:#333; line-height:1.6; }
+    .zahlung{ margin-top:20px; padding:12px 14px; background:#f5f5f5; border-radius:6px; font-size:11.5px; }
+  </style></head><body>
+    <div class="head">
+      <img src="${logoSrc}"/>
+      <div class="org">Burschenschaft Verna<br/>internes Kassenwerkzeug</div>
+    </div>
+    <div class="empf">${(d.empfaengerName||'').replace(/\\n/g,'<br/>')}<br/>${(d.empfaengerAdresse||'').replace(/\\n/g,'<br/>')}</div>
+    <h1>Rechnung</h1>
+    <div class="meta">Rechnungsnummer: <strong>${d.nummer}</strong> &nbsp;&middot;&nbsp; Datum: ${d.datum}<br/>${d.betreff?('Betreff: '+d.betreff):''}</div>
+    <table>
+      <thead><tr><th>Bezeichnung</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Summe</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="summen">
+      ${d.ustModus!=='keine' ? `<div><span>Netto</span><span>${fmt(netto)}</span></div><div><span>zzgl. ${d.ustModus}% USt.</span><span>${fmt(ust)}</span></div>` : ''}
+      <div class="gesamt"><span>Gesamtbetrag</span><span>${fmt(gesamt)}</span></div>
+    </div>
+    ${d.ustModus==='keine' ? '<div style="font-size:10.5px;color:#555;margin-top:6px;">Gemäß § 19 UStG (Kleinunternehmerregelung) wird keine Umsatzsteuer ausgewiesen.</div>' : ''}
+    <div class="zahlung">
+      Zahlbar: ${d.zahlungsziel}<br/>
+      Kontoinhaber: ${d.bankInhaber}<br/>
+      IBAN: ${d.iban} &nbsp; BIC: ${d.bic}<br/>
+      Bank: ${d.bankName}
+    </div>
+    <div class="footer">Vielen Dank!<br/>Burschenschaft Verna</div>
+  </body></html>`;
+}
+
+async function rechnungErstellen(){
+  const d = sammleDaten();
+  if(!d.nummer || !d.datum){ showToast('\u2717 Bitte Rechnungsnummer und Datum ausfüllen', true); return; }
+  speicherBankdaten();
+
+  const win = window.open('', '_blank');
+  if(win){ win.document.write(rechnungHTML(d)); win.document.close(); setTimeout(()=>win.print(), 300); }
+
+  const betrag = nettoSumme() * (d.ustModus==='19'?1.19:d.ustModus==='7'?1.07:1);
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/rechnungen`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal'}),
+      body: JSON.stringify({ id:'re_'+Date.now(), nummer: parseInt(naechsteNummer), empfaenger:d.empfaengerName, datum:d.datum, betrag, data:d })
+    });
+    setStatus('Gespeichert');
+    ladeRechnungsListe();
+    ladeNaechsteNummer();
+  }catch(e){ setStatus('Konnte nicht in Cloud gespeichert werden'); }
+  showToast('\u2713 Rechnung erstellt');
+}
+
+function emailVorbereiten(){
+  const d = sammleDaten();
+  const betreff = encodeURIComponent(`Rechnung ${d.nummer} \u2013 Burschenschaft Verna`);
+  const body = encodeURIComponent(`Hallo,\n\nanbei erhaltet ihr die Rechnung ${d.nummer} über ${fmt(nettoSumme()*(d.ustModus==='19'?1.19:d.ustModus==='7'?1.07:1))}.\n\nBitte die zuvor heruntergeladene/gedruckte PDF-Datei an diese E-Mail anhängen.\n\nViele Grüße\nBurschenschaft Verna`);
+  window.location.href = `mailto:?subject=${betreff}&body=${body}`;
+}
+
+async function ladeRechnungsListe(){
+  const el = document.getElementById('rechnungs-liste');
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rechnungen?select=id,nummer,empfaenger,datum,betrag&order=nummer.desc`, { headers: SB_HEADERS });
+    const rows = await res.json();
+    if(rows.length===0){ el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Noch keine Rechnungen erstellt.</div>'; return; }
+    el.innerHTML = rows.map(r=>`
+      <div class="liste-item">
+        <div><span class="re-num">${r.nummer}</span> &middot; ${r.empfaenger||'(ohne Namen)'} &middot; ${r.datum||''} &middot; ${fmt(r.betrag)}</div>
+        <button onclick="rechnungErneutOeffnen('${r.id}')">Erneut öffnen</button>
+      </div>`).join('');
+  }catch(e){
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Keine Verbindung \u2013 Liste kann gerade nicht geladen werden.</div>';
+  }
+}
+async function rechnungErneutOeffnen(id){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rechnungen?id=eq.${id}&select=data`, { headers: SB_HEADERS });
+    const rows = await res.json();
+    if(rows.length===0) throw new Error();
+    const win = window.open('', '_blank');
+    if(win){ win.document.write(rechnungHTML(rows[0].data)); win.document.close(); setTimeout(()=>win.print(), 300); }
+  }catch(e){ showToast('\u2717 Konnte Rechnung nicht laden', true); }
+}
+
+function toggleFullscreen(){
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  else{ document.exitFullscreen().catch(()=>{}); }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
+
+function fuelleAusURLParametern(){
+  const params = new URLSearchParams(window.location.search);
+  if(!params.has('firma') && !params.has('betreff')) return;
+  if(params.get('firma')) document.getElementById('f-empfaenger-name').value = params.get('firma');
+  if(params.get('adresse')) document.getElementById('f-empfaenger-adresse').value = params.get('adresse');
+  if(params.get('betreff')) document.getElementById('f-betreff').value = params.get('betreff');
+  if(params.get('pos_bez') || params.get('pos_betrag')){
+    positionen = [{ bez: params.get('pos_bez')||'', menge:1, preis: parseFloat(params.get('pos_betrag'))||0 }];
+    renderPositionen();
+  }
+}
+
+document.getElementById('f-datum').value = new Date().toISOString().slice(0,10);
+ladeBankdaten();
+renderPositionen();
+fuelleAusURLParametern();
+ladeNaechsteNummer();
+ladeRechnungsListe();
+</script>
+<input type="hidden" id="logo-img-src" value="data:image/png;base64,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"/>
+</body>
+</html>

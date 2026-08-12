@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsoren & Werbebanner – Burschenschaft Verna</title>
+<style>
+  :root{
+    --ink:#1b2a22; --paper:#faf7ef; --paper-2:#ffffff; --line:#ddd3ba; --line-soft:#eae2cc;
+    --forest:#2f4a3c; --forest-dark:#1f332a; --forest-tint:#e7ede8; --gold:#8a6a2f; --gold-tint:#f2ead4;
+    --danger:#9c332c; --danger-tint:#f6e6e4; --success:#2f6b46; --success-tint:#e3efe6; --text-2:#5c6b60; --text-muted:#8a9188;
+    --font-display:Georgia,'Times New Roman',serif; --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-num:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background-color:var(--paper); background-image:repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(47,74,60,0.05) 28px); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.5; padding:0 0 50px; }
+  .wrap{ max-width:900px; margin:0 auto; padding:0 16px; }
+  .back-strip{ background:var(--forest-dark); text-align:center; padding:8px 0; }
+  .back-strip a{ color:#e7ede8; font-size:12.5px; text-decoration:none; }
+  header.masthead{ background:var(--paper-2); border-bottom:3px solid var(--forest); padding:14px 0; margin-bottom:18px; position:relative; }
+  header .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding-right:120px; }
+  header img{ height:40px; }
+  header h1{ font-family:var(--font-display); font-size:19px; font-weight:700; margin:0; color:var(--forest-dark); }
+  header .eyebrow{ font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); font-weight:600; margin:0; }
+  .fullscreen-btn-corner{ position:absolute; top:16px; right:16px; font-size:12px; padding:8px 12px; border-radius:6px; border:1px solid var(--line); background:var(--paper-2); color:var(--ink); }
+  .status{ font-size:11px; color:var(--text-muted); }
+  .cloud-badge{ font-size:11px; font-weight:600; }
+
+  .summary-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+  .metric-card{ background:var(--paper-2); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+  .metric-card.accent{ background:var(--forest); border-color:var(--forest); }
+  .metric-card.accent .label{ color:#cfe0d5; } .metric-card.accent .value{ color:#fff; }
+  .metric-card .label{ font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; }
+  .metric-card .value{ font-family:var(--font-num); font-size:20px; font-weight:700; }
+
+  .panel{ background:var(--paper-2); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .panel h2{ font-family:var(--font-display); font-size:16px; margin:0 0 12px; color:var(--forest-dark); }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  @media(max-width:560px){ .field-row{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field label{ font-size:12px; color:var(--text-2); font-weight:600; }
+  .field input, .field textarea{ padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-size:14px; font-family:inherit; }
+  .field textarea{ resize:vertical; min-height:44px; }
+  button.primary{ background:var(--forest); color:#fff; border:none; padding:12px 18px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+
+  .sp-item{ background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .sp-item .top{ display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .sp-item .firma{ font-weight:700; font-size:15px; color:var(--forest-dark); }
+  .sp-item .betrag{ font-family:var(--font-num); font-weight:700; font-size:15px; }
+  .sp-item .meta{ font-size:12.5px; color:var(--text-2); margin-bottom:10px; }
+  .sp-item .beschreibung{ font-size:13px; color:var(--ink); margin-bottom:10px; }
+  .sp-item .badges{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .badge{ font-size:11px; padding:4px 9px; border-radius:12px; font-weight:600; }
+  .badge.ok{ background:var(--success-tint); color:var(--success); }
+  .badge.offen{ background:var(--gold-tint); color:var(--gold); }
+  .sp-item .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .sp-item .actions button{ font-size:12.5px; padding:7px 12px; border-radius:6px; border:1px solid var(--line); background:var(--paper-2); cursor:pointer; }
+  .sp-item .actions button.hervorgehoben{ background:var(--forest); color:#fff; border-color:var(--forest); }
+  .sp-item .actions button.danger{ color:var(--danger); border-color:var(--danger-tint); }
+  .sp-item label.check{ display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer; }
+
+  .empty-hint{ text-align:center; color:var(--text-muted); font-size:13px; padding:24px; }
+  footer.note{ text-align:center; font-size:11.5px; color:var(--text-muted); margin-top:30px; }
+</style>
+</head>
+<body>
+<div class="back-strip"><a href="./kirmes-hub.html">&larr; Zurück zur Kirmes-Übersicht</a></div>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="row">
+      <img alt="Logo Burschenschaft Verna" src="data:image/png;base64,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"/>
+      <div>
+        <p class="eyebrow">Burschenschaft Verna</p>
+        <h1>Sponsoren & Werbebanner</h1>
+      </div>
+      <span class="status" id="save-status" style="margin-left:auto;"></span>
+      <span class="cloud-badge" id="cloud-badge"></span>
+    </div>
+    <button class="fullscreen-btn-corner" id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
+  </header>
+
+  <div class="summary-cards" id="summary-cards"></div>
+
+  <div class="panel">
+    <h2>Neuen Sponsor eintragen</h2>
+    <div class="field-row">
+      <div class="field"><label>Firma</label><input type="text" id="f-firma" placeholder="z. B. Musterfirma GmbH"/></div>
+      <div class="field"><label>Ansprechpartner (optional)</label><input type="text" id="f-ansprechpartner"/></div>
+    </div>
+    <div class="field" style="margin-bottom:12px;"><label>Anschrift (für die Rechnung)</label><textarea id="f-adresse" placeholder="Straße Hausnummer&#10;PLZ Ort"></textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Betrag</label><input type="number" min="0" step="0.01" id="f-betrag" placeholder="150.00"/></div>
+      <div class="field"><label>Datum</label><input type="date" id="f-datum"/></div>
+    </div>
+    <div class="field" style="margin-bottom:14px;"><label>Beschreibung (Banner-Größe, Platzierung, Zeitraum)</label><textarea id="f-beschreibung" placeholder="z. B. Banner 3x2m, gesamte Kirmeswoche, Theke Ost"></textarea></div>
+    <button class="primary" onclick="sponsorHinzufuegen()">+ Sponsor eintragen</button>
+  </div>
+
+  <div class="panel">
+    <h2>Alle Sponsoren</h2>
+    <div id="sponsoren-liste"></div>
+  </div>
+
+  <footer class="note">Burschenschaft Verna &middot; internes Kassenwerkzeug &middot; nicht für externe Weitergabe</footer>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
+
+let sponsoren = [];
+let cloudOk = false;
+
+function fmt(v){ return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0) + ' €'; }
+function setStatus(t){ document.getElementById('save-status').textContent = t; }
+function updateCloudBadge(){
+  const el = document.getElementById('cloud-badge');
+  if(!el) return;
+  el.textContent = cloudOk ? '\u2601 Online \u2013 auf allen Geräten sichtbar' : '\u26a0 Offline \u2013 nur lokal gespeichert';
+  el.style.color = cloudOk ? 'var(--success)' : 'var(--danger)';
+}
+function showToast(msg, isError){
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:${isError?'#9c332c':'#2f4a3c'};color:#fff;padding:14px 22px;border-radius:10px;font-size:14.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:10002;max-width:90vw;text-align:center;opacity:0;transition:opacity 0.2s;`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; });
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(), 250); }, 3200);
+}
+function newId(){ return 'sp_' + Date.now().toString(36) + '_' + Math.floor(Math.random()*1000); }
+
+function loadLocal(){
+  try{ const raw = localStorage.getItem('verna-sponsoren'); if(raw) sponsoren = JSON.parse(raw); }catch(e){}
+}
+function saveLocal(){ try{ localStorage.setItem('verna-sponsoren', JSON.stringify(sponsoren)); }catch(e){} }
+
+async function loadFromCloud(silent){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/sponsoren?select=*&order=datum.desc`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error();
+    sponsoren = await res.json();
+    cloudOk = true; updateCloudBadge();
+    if(!silent) setStatus('Von Cloud geladen');
+    saveLocal();
+    return true;
+  }catch(e){ cloudOk = false; updateCloudBadge(); return false; }
+}
+let saveTimer = null;
+function scheduleSave(){
+  setStatus('Wird gespeichert …');
+  saveLocal();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>setStatus('Gespeichert'), 400);
+}
+async function syncUpsert(s){
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/sponsoren`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+      body: JSON.stringify(s)
+    });
+    cloudOk = true;
+  }catch(e){ cloudOk = false; }
+  updateCloudBadge();
+}
+async function syncDelete(id){
+  try{ await fetch(`${SUPABASE_URL}/rest/v1/sponsoren?id=eq.${id}`, { method:'DELETE', headers: SB_HEADERS }); }catch(e){}
+}
+function istEditingText(){
+  const el = document.activeElement;
+  return el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA');
+}
+setInterval(async ()=>{
+  if(istEditingText()) return;
+  const ok = await loadFromCloud(true);
+  if(ok) renderAll();
+}, 15000);
+
+function sponsorHinzufuegen(){
+  const firma = document.getElementById('f-firma').value.trim();
+  const betrag = parseFloat(document.getElementById('f-betrag').value) || 0;
+  if(!firma){ showToast('\u2717 Bitte Firmenname eingeben', true); return; }
+  if(betrag<=0){ showToast('\u2717 Bitte Betrag eingeben', true); return; }
+  const s = {
+    id: newId(),
+    firma,
+    ansprechpartner: document.getElementById('f-ansprechpartner').value.trim(),
+    adresse: document.getElementById('f-adresse').value.trim(),
+    beschreibung: document.getElementById('f-beschreibung').value.trim(),
+    betrag,
+    datum: document.getElementById('f-datum').value || new Date().toISOString().slice(0,10),
+    rechnung_erstellt: false,
+    bezahlt: false
+  };
+  sponsoren.unshift(s);
+  ['f-firma','f-ansprechpartner','f-adresse','f-betrag','f-beschreibung'].forEach(id=>document.getElementById(id).value='');
+  renderAll();
+  scheduleSave();
+  syncUpsert(s);
+  showToast('\u2713 Sponsor eingetragen');
+}
+function toggleFlag(id, feld){
+  const s = sponsoren.find(x=>x.id===id);
+  if(!s) return;
+  s[feld] = !s[feld];
+  renderAll();
+  scheduleSave();
+  syncUpsert(s);
+}
+function sponsorLoeschen(id){
+  if(!confirm('Diesen Sponsor-Eintrag wirklich löschen?')) return;
+  sponsoren = sponsoren.filter(x=>x.id!==id);
+  renderAll();
+  scheduleSave();
+  syncDelete(id);
+}
+function rechnungErstellen(id){
+  const s = sponsoren.find(x=>x.id===id);
+  if(!s) return;
+  const params = new URLSearchParams({
+    firma: s.firma,
+    adresse: s.adresse||'',
+    betreff: 'Werbefläche Kirmeszelt' + (s.beschreibung ? ' – ' + s.beschreibung : ''),
+    pos_bez: s.beschreibung || 'Werbefläche Kirmeszelt',
+    pos_betrag: s.betrag
+  });
+  s.rechnung_erstellt = true;
+  scheduleSave();
+  syncUpsert(s);
+  window.location.href = 'rechnung.html?' + params.toString();
+}
+
+function renderAll(){
+  const gesamt = sponsoren.reduce((sum,s)=>sum+s.betrag,0);
+  const offen = sponsoren.filter(s=>!s.rechnung_erstellt).length;
+  const unbezahlt = sponsoren.filter(s=>!s.bezahlt).length;
+  document.getElementById('summary-cards').innerHTML = `
+    <div class="metric-card accent"><div class="label">Sponsoring gesamt</div><div class="value">${fmt(gesamt)}</div></div>
+    <div class="metric-card"><div class="label">Sponsoren gesamt</div><div class="value">${sponsoren.length}</div></div>
+    <div class="metric-card"><div class="label">Ohne Rechnung</div><div class="value">${offen}</div></div>
+    <div class="metric-card"><div class="label">Noch unbezahlt</div><div class="value">${unbezahlt}</div></div>
+  `;
+
+  const el = document.getElementById('sponsoren-liste');
+  if(sponsoren.length===0){
+    el.innerHTML = '<div class="empty-hint">Noch keine Sponsoren eingetragen.</div>';
+    return;
+  }
+  el.innerHTML = sponsoren.map(s=>`
+    <div class="sp-item">
+      <div class="top">
+        <div class="firma">${s.firma}</div>
+        <div class="betrag">${fmt(s.betrag)}</div>
+      </div>
+      <div class="meta">${s.datum||''}${s.ansprechpartner ? ' &middot; '+s.ansprechpartner : ''}</div>
+      ${s.beschreibung ? `<div class="beschreibung">${s.beschreibung}</div>` : ''}
+      <div class="badges">
+        <span class="badge ${s.rechnung_erstellt?'ok':'offen'}">${s.rechnung_erstellt?'\u2713 Rechnung erstellt':'\u26a0 Noch keine Rechnung'}</span>
+        <span class="badge ${s.bezahlt?'ok':'offen'}">${s.bezahlt?'\u2713 Bezahlt':'\u26a0 Unbezahlt'}</span>
+      </div>
+      <div class="actions">
+        <button class="hervorgehoben" onclick="rechnungErstellen('${s.id}')">🧾 Rechnung erstellen</button>
+        <label class="check"><input type="checkbox" ${s.bezahlt?'checked':''} onchange="toggleFlag('${s.id}','bezahlt')"/> Als bezahlt markieren</label>
+        <button class="danger" onclick="sponsorLoeschen('${s.id}')">Löschen</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleFullscreen(){
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  else{ document.exitFullscreen().catch(()=>{}); }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
+
+document.getElementById('f-datum').value = new Date().toISOString().slice(0,10);
+loadLocal();
+renderAll();
+loadFromCloud(true).then(ok=>{ if(ok) renderAll(); });
+</script>
+</body>
+</html>

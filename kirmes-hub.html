@@ -84,6 +84,7 @@
     <p class="eyebrow">Burschenschaft Verna</p>
     <input type="text" id="page-title" class="editable-title" value="Kirmes Verna 2026" oninput="onTitleChange(this.value)" title="Titel antippen zum Bearbeiten"/>
     <div class="sub">Übersicht aller internen Kassenwerkzeuge</div>
+    <button id="install-btn" onclick="installApp()" style="display:none;width:100%;max-width:400px;margin:14px auto 0;background:var(--forest);color:#fff;border:none;padding:14px 20px;border-radius:10px;font-size:14.5px;font-weight:600;cursor:pointer;">📲 App auf Startbildschirm installieren</button>
   </header>
 
   <div class="section-title">Am Kassenstand (täglich im Einsatz)</div>
@@ -120,6 +121,24 @@
 
   <div class="section-title">Organisation</div>
   <div class="grid">
+    <a class="card" href="./sponsoren.html">
+      <span class="icon">🏷️</span>
+      <h2>Sponsoren & Werbebanner</h2>
+      <p>Wer hat für einen Bannerplatz bezahlt – mit direkter Übergabe an die Rechnungserstellung.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
+    <a class="card" href="./rechnung.html">
+      <span class="icon">🧾</span>
+      <h2>Rechnung erstellen</h2>
+      <p>Für Verkäufe an andere Kirmes-Teams oder Werbeflächen-Rechnungen an Sponsoren, inkl. E-Mail-Vorbereitung.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
+    <a class="card" href="./archiv.html">
+      <span class="icon">📦</span>
+      <h2>Archiv &amp; Sicherung</h2>
+      <p>Alles zusammen als eine Datei sichern, in der Cloud archivieren oder wiederherstellen.</p>
+      <span class="badge offline">Läuft offline</span>
+    </a>
     <a class="card" href="./schichtplan.html">
       <span class="icon">🗓️</span>
       <h2>Schichtplan</h2>
@@ -207,6 +226,25 @@ function closeQR(){
   const el = document.getElementById('qr-overlay');
   if(el) el.remove();
 }
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'block';
+});
+async function installApp(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'none';
+}
+window.addEventListener('appinstalled', ()=>{
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'none';
+});
 function toggleFullscreen(){
   if(!document.fullscreenElement){
     document.documentElement.requestFullscreen().catch(()=>{});

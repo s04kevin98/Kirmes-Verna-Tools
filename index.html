@@ -61,6 +61,7 @@
   <p class="eyebrow">Burschenschaft Verna</p>
   <h1>Hauptmenü</h1>
   <div class="sub">Wählt einen Bereich aus</div>
+  <button id="install-btn" onclick="installApp()" style="display:none;width:100%;max-width:400px;margin:0 auto 24px;background:var(--forest);color:#fff;border:none;padding:14px 20px;border-radius:10px;font-size:14.5px;font-weight:600;cursor:pointer;">📲 App auf Startbildschirm installieren</button>
 
   <div class="tiles">
     <a class="tile" href="./kirmes-hub.html">
@@ -116,6 +117,25 @@ function closeQR(){
   const el = document.getElementById('qr-overlay');
   if(el) el.remove();
 }
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'block';
+});
+async function installApp(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'none';
+}
+window.addEventListener('appinstalled', ()=>{
+  const btn = document.getElementById('install-btn');
+  if(btn) btn.style.display = 'none';
+});
 function toggleFullscreen(){
   if(!document.fullscreenElement){
     document.documentElement.requestFullscreen().catch(()=>{});
