@@ -378,6 +378,14 @@ function berechneTagKategorien(tag){
   });
   return kategorien;
 }
+async function holePaypalUmsatzFuerTag(tag){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?tag=eq.${encodeURIComponent(tag)}&zahlart=eq.paypal&select=summe`, { headers: SB_HEADERS });
+    if(!res.ok) return 0;
+    const rows = await res.json();
+    return rows.reduce((s,r)=> s + (parseFloat(r.summe)||0), 0);
+  }catch(e){ return 0; }
+}
 let kabSyncTimer = null;
 function scheduleKabSync(){
   clearTimeout(kabSyncTimer);
@@ -386,6 +394,10 @@ function scheduleKabSync(){
 async function syncKabErgebnis(tag){
   try{
     const kategorien = berechneTagKategorien(tag);
+    const paypalSumme = await holePaypalUmsatzFuerTag(tag);
+    if(paypalSumme > 0){
+      kategorien['Bon-/Getränkeverkauf'] = (kategorien['Bon-/Getränkeverkauf']||0) + paypalSumme;
+    }
     const gesamt = Object.values(kategorien).reduce((s,v)=>s+v,0);
     await fetch(`${SUPABASE_URL}/rest/v1/kassenabrechnung_ergebnis`, {
       method:'POST',
@@ -865,15 +877,21 @@ async function holeKassenAppUmsatz(){
   const statusEl = document.getElementById('kassenapp-sync-status');
   if(statusEl) statusEl.textContent = 'lädt …';
   try{
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?tag=eq.${encodeURIComponent(activeTag)}&select=summe`, { headers: SB_HEADERS });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/verkaufe?tag=eq.${encodeURIComponent(activeTag)}&select=summe,zahlart`, { headers: SB_HEADERS });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const rows = await res.json();
-    const summe = rows.reduce((s,r)=> s + (parseFloat(r.summe)||0), 0);
+    const barRows = rows.filter(r => (r.zahlart||'bar') === 'bar');
+    const paypalRows = rows.filter(r => r.zahlart === 'paypal');
+    const summe = barRows.reduce((s,r)=> s + (parseFloat(r.summe)||0), 0);
+    const paypalSumme = paypalRows.reduce((s,r)=> s + (parseFloat(r.summe)||0), 0);
     k.tabletUmsatz = summe;
     k.tabletUmsatzZeit = jetzt();
     const input = document.querySelector('.verkauf-fields input[type=number]');
     if(input) input.value = summe || '';
-    if(statusEl) statusEl.textContent = 'zuletzt abgerufen um ' + k.tabletUmsatzZeit + ' Uhr';
+    if(statusEl){
+      statusEl.textContent = 'zuletzt abgerufen um ' + k.tabletUmsatzZeit + ' Uhr (nur Bargeld)'
+        + (paypalSumme > 0 ? ` \u2013 zzgl. ${fmt(paypalSumme)} per PayPal (nicht in Bargeld enthalten)` : '');
+    }
     refreshResults();
     scheduleSave();
   }catch(e){

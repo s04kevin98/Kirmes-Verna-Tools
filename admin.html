@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin – Burschenschaft Verna</title>
+<style>
+  :root{
+    --ink:#1b2a22; --paper:#faf7ef; --paper-2:#ffffff; --line:#ddd3ba; --line-soft:#eae2cc;
+    --forest:#2f4a3c; --forest-dark:#1f332a; --forest-tint:#e7ede8; --gold:#8a6a2f; --gold-tint:#f2ead4;
+    --danger:#9c332c; --danger-tint:#f6e6e4; --success:#2f6b46; --text-2:#5c6b60; --text-muted:#8a9188;
+    --font-display:Georgia,'Times New Roman',serif; --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-num:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background-color:var(--paper); background-image:repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(47,74,60,0.05) 28px); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.5; padding:0 0 50px; }
+  .wrap{ max-width:820px; margin:0 auto; padding:0 16px; }
+  .back-strip{ background:var(--forest-dark); text-align:center; padding:8px 0; }
+  .back-strip a{ color:#e7ede8; font-size:12.5px; text-decoration:none; }
+  header.masthead{ background:var(--paper-2); border-bottom:3px solid var(--forest); padding:14px 0; margin-bottom:18px; position:relative; }
+  header .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding-right:120px; }
+  header img{ height:40px; }
+  header h1{ font-family:var(--font-display); font-size:19px; font-weight:700; margin:0; color:var(--forest-dark); }
+  header .eyebrow{ font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); font-weight:600; margin:0; }
+  .fullscreen-btn-corner{ position:absolute; top:16px; right:16px; font-size:12px; padding:8px 12px; border-radius:6px; border:1px solid var(--line); background:var(--paper-2); color:var(--ink); }
+  .status{ font-size:11px; color:var(--text-muted); }
+  .cloud-badge{ font-size:11px; font-weight:600; }
+
+  .pin-gate{ position:fixed; inset:0; background:var(--paper); z-index:99999; display:flex; align-items:center; justify-content:center; }
+  .pin-box{ background:var(--paper-2); border:1px solid var(--line); border-radius:14px; padding:32px 28px; text-align:center; max-width:320px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.15); }
+  .pin-box img{ height:50px; margin-bottom:14px; }
+  .pin-box h2{ font-family:var(--font-display); font-size:18px; margin:0 0 6px; color:var(--forest-dark); }
+  .pin-box .sub{ font-size:12.5px; color:var(--text-2); margin-bottom:18px; }
+  .pin-box input{ width:100%; padding:12px; border:1px solid var(--line); border-radius:8px; font-size:20px; text-align:center; letter-spacing:0.3em; margin-bottom:12px; }
+  .pin-box button{ width:100%; padding:12px; border-radius:8px; border:none; background:var(--forest); color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  .pin-error{ color:var(--danger); font-size:12.5px; margin-top:8px; min-height:16px; }
+
+  .panel{ background:var(--paper-2); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .panel h2{ font-family:var(--font-display); font-size:16px; margin:0 0 4px; color:var(--forest-dark); }
+  .panel .sub{ font-size:12.5px; color:var(--text-2); margin-bottom:16px; }
+
+  table.artikel{ width:100%; border-collapse:collapse; margin-bottom:14px; }
+  table.artikel th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--text-2); padding:5px 6px; }
+  table.artikel td{ padding:5px 6px; vertical-align:middle; }
+  table.artikel input[type=text]{ width:100%; padding:8px 9px; border:1px solid var(--line); border-radius:6px; font-size:13.5px; }
+  table.artikel input[type=number]{ width:90px; padding:8px 9px; border:1px solid var(--line); border-radius:6px; font-size:13.5px; }
+  table.artikel .tage-col{ display:flex; gap:4px; flex-wrap:wrap; }
+  table.artikel .tage-col label{ font-size:10.5px; display:flex; align-items:center; gap:2px; white-space:nowrap; }
+  .del-col button{ background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px; }
+
+  button.primary{ background:var(--forest); color:#fff; border:none; padding:11px 16px; border-radius:8px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.secondary{ background:var(--paper); color:var(--ink); border:1px solid var(--line); padding:10px 14px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+
+  .field{ display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+  .field label{ font-size:12px; color:var(--text-2); font-weight:600; }
+  .field input{ padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-size:14px; max-width:320px; }
+  .field .hint{ font-size:11px; color:var(--text-muted); }
+
+  .hinweis{ background:#f2ead4; border-left:3px solid #8a6a2f; padding:10px 14px; font-size:12px; color:#5c4a1f; margin-bottom:20px; line-height:1.6; }
+  footer.note{ text-align:center; font-size:11.5px; color:var(--text-muted); margin-top:30px; }
+</style>
+</head>
+<body>
+
+<div id="pin-gate" class="pin-gate">
+  <div class="pin-box">
+    <img alt="Logo Burschenschaft Verna" src="data:image/png;base64,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"/>
+    <h2>Admin-Bereich</h2>
+    <div class="sub">Nur für Vorstand/Kassierer – bitte PIN eingeben</div>
+    <input type="password" inputmode="numeric" id="pin-input" maxlength="6" placeholder="••••"/>
+    <button onclick="checkPin()">Freischalten</button>
+    <div class="pin-error" id="pin-error"></div>
+  </div>
+</div>
+
+<div id="app-content" style="display:none;">
+<div class="back-strip"><a href="./kirmes-hub.html">&larr; Zurück zur Kirmes-Übersicht</a></div>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="row">
+      <img alt="Logo Burschenschaft Verna" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQQAAAC5AQAAAADmUHy4AAAKHmlDQ1BJQ0MgUHJvZmlsZQAAeJy1Vnk8lGsbft73nX2xzZDd2LdGljDIvpPITpsxMxjLYMyg0iapcCJJthI5FTp0WpDTIi3ajtKmos7IEarT0SKVyvcOf+j7fefP812/3/O813v97vt+7ud+/3gvAMhjAAWMrhSBSBjs7caIjIpm4B8DBKgBRaAHtNicjDTwv4Dm6ceHc2/3mNLd+JPjs9Z3YS3Zbl/+vLHVjvoPuT9CjsvL4KDlPFC+NhY9HOVdKKfHhga7o/w+AAQKN4XLBYAoQfUd8bMxpARpTPwPMcniFD6q50j1FB47A+UlKNeLTUoTofyUVBfO5V6b5T/kingctB5pENUpmWIeehZJOpftWSJpLll6fzonTSjleSi35SSw0RjyWZQvnOt/FloZ0gH6errbWNjZ2DAtmRaM2GQ2J4mRwWEnS6v+25B+qzmmdxAAWbS3ttscsTBzTsNINywgAVlABypAE+gCI8AElsAWOAAX4An8QCAIBVFgNeCABJAChCAL5IAtIB8UghKwF1SBWtAAGkELOAHawVlwEVwFN8Ed8AAMAAkYAa/ABPgIpiEIwkNUiAapQFqQPmQKWUIsyAnyhJZCwVAUFAPFQwJIDOVAW6FCqBSqguqgRuhX6Ax0EboO9UGPoSFoHHoHfYERmALTYQ3YAF4Es2BX2B8OhVfB8XA6vA7Og3fBFXA9fAxugy/CN+EHsAR+BU8iACEjSog2wkRYiDsSiEQjcYgQ2YgUIOVIPdKCdCI9yD1EgrxGPmNwGBqGgWFiHDA+mDAMB5OO2YgpwlRhjmLaMJcx9zBDmAnMdywVq441xdpjfbGR2HhsFjYfW449jD2NvYJ9gB3BfsThcEo4Q5wtzgcXhUvErccV4fbjWnFduD7cMG4Sj8er4E3xjvhAPBsvwufjK/HH8Bfwd/Ej+E8EMkGLYEnwIkQTBIRcQjmhiXCecJcwSpgmyhH1ifbEQCKXuJZYTGwgdhJvE0eI0yR5kiHJkRRKSiRtIVWQWkhXSIOk92QyWYdsR15O5pM3kyvIx8nXyEPkzxQFignFnbKSIqbsohyhdFEeU95TqVQDqgs1miqi7qI2Ui9Rn1E/ydBkzGR8Zbgym2SqZdpk7sq8kSXK6su6yq6WXSdbLntS9rbsazminIGcuxxbbqNctdwZuX65SXmavIV8oHyKfJF8k/x1+TEFvIKBgqcCVyFP4ZDCJYVhGkLTpbnTOLSttAbaFdoIHUc3pPvSE+mF9F/ovfQJRQXFxYrhitmK1YrnFCVKiJKBkq9SslKx0gmlh0pfFmgscF3AW7BzQcuCuwumlNWUXZR5ygXKrcoPlL+oMFQ8VZJUdqu0qzxVxaiaqC5XzVI9oHpF9bUaXc1BjaNWoHZC7Yk6rG6iHqy+Xv2Q+i31SQ1NDW+NNI1KjUsarzWVNF00EzXLNM9rjmvRtJy0+FplWhe0XjIUGa6MZEYF4zJjQltd20dbrF2n3as9rWOoE6aTq9Oq81SXpMvSjdMt0+3WndDT0gvQy9Fr1nuiT9Rn6Sfo79Pv0Z8yMDSIMNhu0G4wZqhs6Gu4zrDZcNCIauRslG5Ub3TfGGfMMk4y3m98xwQ2sTZJMKk2uW0Km9qY8k33m/YtxC60WyhYWL+wn0lhujIzmc3MITMls6VmuWbtZm8W6S2KXrR7Uc+i7+bW5snmDeYDFgoWfha5Fp0W7yxNLDmW1Zb3rahWXlabrDqs3i42XcxbfGDxI2uadYD1dutu6282tjZCmxabcVs92xjbGtt+Fp0VxCpiXbPD2rnZbbI7a/fZ3sZeZH/C/m8HpkOSQ5PD2BLDJbwlDUuGHXUc2Y51jhInhlOM00EnibO2M9u53vm5i64L1+Wwy6irsWui6zHXN27mbkK3025T7vbuG9y7PBAPb48Cj15PBc8wzyrPZ146XvFezV4T3tbe6727fLA+/j67ffp9NXw5vo2+E362fhv8LvtT/EP8q/yfLzVZKlzaGQAH+AXsCRhcpr9MsKw9EAT6Bu4JfBpkGJQe9Nty3PKg5dXLXwRbBOcE94TQQtaENIV8DHULLQ4dCDMKE4d1h8uGrwxvDJ+K8IgojZBELorcEHkzSjWKH9URjY8Ojz4cPbnCc8XeFSMrrVfmr3y4ynBV9qrrq1VXJ68+t0Z2DXvNyRhsTERMU8xXdiC7nj0Z6xtbEzvBcefs47ziunDLuOM8R14pbzTOMa40bizeMX5P/HiCc0J5wmu+O7+K/zbRJ7E2cSopMOlI0kxyRHJrCiElJuWMQEGQJLicqpmandqXZpqWnyZJt0/fmz4h9BcezoAyVmV0iOjoD+aW2Ei8TTyU6ZRZnfkpKzzrZLZ8tiD71lqTtTvXjq7zWvfzesx6zvruHO2cLTlDG1w31G2ENsZu7N6kuylv08hm781Ht5C2JG35Pdc8tzT3w9aIrZ15Gnmb84a3eW9rzpfJF+b3b3fYXrsDs4O/o3en1c7Knd8LuAU3Cs0Lywu/FnGKbvxk8VPFTzO74nb1FtsUHyjBlQhKHu523n20VL50XenwnoA9bWWMsoKyD3vX7L1evri8dh9pn3ifpGJpRUelXmVJ5deqhKoH1W7VrTXqNTtrpvZz99894HKgpVajtrD2y0H+wUd13nVt9Qb15YdwhzIPvWgIb+j5mfVz42HVw4WHvx0RHJEcDT56udG2sbFJvam4GW4WN48fW3nszi8ev3S0MFvqWpVaC4+D4+LjL3+N+fXhCf8T3SdZJ1tO6Z+qOU07XdAGta1tm2hPaJd0RHX0nfE7093p0Hn6N7PfjpzVPlt9TvFc8XnS+bzzMxfWXZjsSut6fTH+4nD3mu6BS5GX7l9efrn3iv+Va1e9rl7qce25cM3x2tnr9tfP3GDdaL9pc7PtlvWt079b/36616a37bbt7Y47dnc6+5b0nb/rfPfiPY97V+/73r/5YNmDvodhDx/1r+yXPOI+Gnuc/Pjtk8wn0wObB7GDBU/lnpY/U39W/4fxH60SG8m5IY+hW89Dng8Mc4Zf/Znx59eRvBfUF+WjWqONY5ZjZ8e9xu+8XPFy5FXaq+nX+X/J/1XzxujNqb9d/r41ETkx8lb4duZd0XuV90c+LP7QPRk0+exjysfpqYJPKp+OfmZ97vkS8WV0Ousr/mvFN+Nvnd/9vw/OpMzM/OBNzFBbwpj3JR68OLY4WcSQGhb31ORUsZARksbm8BhMhtTE/N98SmwlAO3bAFB+Mq+hCJp7zPm2WUDgnwHP5yFK6LJCpYZ5LbUeANYkqpdk8ONnNffgUMYPc2AG8+J4Qp4AvWo4n5fFF8Sj9xdw+SJ+qoDBFzD+a0z/yuV/wHyf855ZxMsWzfaZmrZWyI9PEDF8BSKeUMCWdsROnv06QmmPGalCEV+cspBhaW5uB0BGnJXlbCmIgnpn7B8zM+8NAMCXAfCteGZmum5m5hs6C2QAgC7xfwAKP9n2U7+jGwAABiZJREFUeNrVmD1v3VQYx3/HNvcaKUrMFqSKWEjAGomlQ5UYgZgZOzBE4gt0rFDVnEgFOjB0o0MR/QAg9RMgR6CqG2GCiTq0UrNAHRqo0/r6YfCxfY5fctWKBUtXsuN/ntf/8+KjhLOvY49l1wsiFvEyRPkfaAG4PYCIdRUbUqpqddv+W+7K+CM6kavPDpy/Bc7TyTyHQqbtCCgzUsrDaAKxD5AD2ck4QpIE0jCbQTWOeEY2rwh5lXR3HFG0dyqReNzSGF3ru/Pp7/w4QFzPL6QhSAbJN5dFL/qIxRXepyA5LSPik5w07SNOqvrhcgzro77kHlyH+EZM8DnZ+Wyvj8gCRAMkyGe7fDCUsV8AyDpaFAn6sddDPGRPfw/M5jNYpPi6z48fNJus+iIi8oVWqZRsu/xIAV77GIDLiQeQOTJKlbJOQ65inj4vmNcygoblMQFNkObF4VsXe74czaLCn3dhirJ0tedLuFbEXXIJKaLSQUQsosTh42Yc2JYuirXcqQvZyy7MbW+fQ64chl8l4aGlpbhWRDO30rIy/NpCHMDKeRcRQ8M4EZF0y5feVeQb6UZnR3xY9es5gDjvtET5oOL9/PWPihaxCIu6QpSyglLc7ywtKRXAAvZbSJScXGlr/+hW9WHz4l5zs5IvupimW+q+iEjhtJwMv/Pl0KrC7u5SZ0dsXDlNwcQaiFY6RPTUJOVXYNHamgY/xUZtw7jjGWDuRQrW9JrUOW94/cC36V+xxlxyDyRsy6rKLFuVjowdVdlQI5ObAEfmcSfWJQRQVui6Qfp8Vbcrc21r38T0WrJt4nmSJtD006hiCxDJUU9q2740UdpuKMInJqay0sbxW6seg5xz4EGeGLpxAx7RhdW/bZzPMnZrseugUkCZiLBeZ+6wbRQxyB0wzQj0O01eUot9t+wxlB6AB6kyQawK4KkVs/fYAg9kp7E0ARZpNxLflieACH5m2swlgHXLVGE3t/tRmQM8povqKSkeUDWZ0wCnWVuP3CPDAy2GVae1rIudY0nt7U5v6P7S+i+wAyIlpqyPa9kqg43adJTkHvjNSP3LhHZrMLNTw90HbXcxMiq1X2d/M2xe9Itq9c06Lw07/OHiUPMDPxq8ibvxaef2bh+nwrZuBzJMDO/09o+wQ+x2+4eFqNbH9hZrQzn0OoQanfvxsk3puDWvtw209wf1cjK8lKGTOAyYF8PN0e3a4YiW8gV3y7FdqhhLnIM4XqrFG0uc8+b+9PppEnR3auHMX3KTVrxUxF6ZFDyqJRjVopdpqZKJ1LaIjdsTiXM4draW6Ggitd0e9OcyGcFiIrUtwq+yCRkN19krrneptb+S2kRn56z/Gs1+9Mge9mNkaZLr3+zJaBFtSW1kbI8ixErdxjjC8tYf56nVgRbjDJqZH93w6CGUhueZtTUPS8MyZM2yQ3URXgRtEvxy9NvUp/42OaOiUuD8oCPZiE3gn0FybcQq8Lfuu2sjlIbFzplfnplRhZU7tzucG6sKB+HrXmcYaJGi9tmb1MIM2DmzB6kMsl4L9wbTc0kf85d3umxQl33EG/VGNumtiGhyd1YOEDmRU5c2x6xxNsGxLsHj3aG9TsPxSWjNSd1rlyJDW+3Szj04+A5+VsdKKU/2VMyadhuZiGbXREGVwK6UiDAXASMjce3Yw29ZpK2oK7tX9rMfkzrFnrkd0RtmOj+O7Sp0560RfxhaDx5E3TLnmQFfDhgkvR2jskzyTIiDyRMmrzl7gXer35qcNTJzy8IQVlTcCnNrP5igdnHmyVXa2y2Lkmi0KIwMV0zVmpjX7liv91UA2MdJ2shQlN0APY0IjQGZsr/m+5aWnUrvrGUsaWToakC0Ckg9pJWR99c1cUOYuGFOQ2f+e/0mjWp6ma5/Q0tnrWcdI+LG9aD5Mo0swV4XvG0pIEC6qo3q5mpunFYXNvHtIuZZudC1umpqH0tIC+vEq0aEPVA4RrrAimhWx6Q0wXb40aWgN8WCRrDYmS2mLA0prK5d1IgRjsQDSyP7hLSrN8oaoSZ4tluN2uFR1SExTjeIqQ8gcxDpdDGFNBHUtqXJcHSlk5u0tkRqGZsNTmHNqiXn60H1Uiff/2PEv6zXDxuDNargAAAAAElFTkSuQmCC"/>
+      <div>
+        <p class="eyebrow">Burschenschaft Verna</p>
+        <h1>Admin</h1>
+      </div>
+      <span class="status" id="save-status" style="margin-left:auto;"></span>
+      <span class="cloud-badge" id="cloud-badge"></span>
+    </div>
+    <button class="fullscreen-btn-corner" id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
+  </header>
+
+  <div class="hinweis">
+    Änderungen hier wirken sich direkt auf die Kassen-App aus – auf allen Geräten, sobald sie sich das nächste Mal synchronisieren (spätestens nach 15 Sekunden). Bitte mit Bedacht ändern.
+  </div>
+
+  <div class="panel">
+    <h2>Kassen-App – Artikel &amp; Preise</h2>
+    <div class="sub">Name, Preis und an welchen Tagen ein Artikel verkauft wird.</div>
+    <table class="artikel">
+      <thead><tr><th style="width:32%;">Name</th><th style="width:14%;">Preis (€)</th><th>Verfügbar an</th><th style="width:24px;"></th></tr></thead>
+      <tbody id="artikel-body"></tbody>
+    </table>
+    <button class="secondary" onclick="artikelHinzufuegen()">+ Artikel hinzufügen</button>
+    <div class="btn-row">
+      <button class="primary" onclick="artikelSpeichern()">Speichern</button>
+      <button class="secondary" onclick="artikelZuruecksetzen()">Auf Standard zurücksetzen</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>PayPal-Empfänger</h2>
+    <div class="sub">Der PayPal.me-Nutzername für die QR-Code-Zahlung in der Kassen-App.</div>
+    <div class="field">
+      <label>PayPal.me-Name</label>
+      <input type="text" id="paypal-handle" placeholder="z. B. BSVerna"/>
+      <div class="hint">Ergibt: paypal.me/[Name]</div>
+    </div>
+    <button class="primary" onclick="paypalSpeichern()">Speichern</button>
+  </div>
+
+  <div class="panel">
+    <h2>Schichtplan</h2>
+    <div class="sub">Neues Bild hochladen, um den aktuell angezeigten Schichtplan zu ersetzen. Wird automatisch verkleinert.</div>
+    <div id="schichtplan-vorschau" style="margin-bottom:12px;"></div>
+    <input type="file" id="schichtplan-input" accept="image/*" style="display:none;" onchange="schichtplanDateiGewaehlt(this)"/>
+    <button class="secondary" onclick="document.getElementById('schichtplan-input').click()">📷 Neues Bild wählen</button>
+    <button class="primary" id="schichtplan-speichern-btn" onclick="schichtplanSpeichern()" style="display:none;">Speichern</button>
+  </div>
+
+  <div class="panel">
+    <h2>Strafgeldliste – Katalog</h2>
+    <div class="sub">Die vorausgefüllten Strafen-Vorschläge in der Strafgeldliste.</div>
+    <table class="artikel" id="strafenkatalog-table">
+      <thead><tr><th style="width:70%;">Grund</th><th style="width:20%;">Betrag (€)</th><th style="width:24px;"></th></tr></thead>
+      <tbody id="strafenkatalog-body"></tbody>
+    </table>
+    <button class="secondary" onclick="strafeHinzufuegen()">+ Strafe hinzufügen</button>
+    <div class="btn-row">
+      <button class="primary" onclick="strafenkatalogSpeichern()">Speichern</button>
+      <button class="secondary" onclick="strafenkatalogZuruecksetzen()">Auf Standard zurücksetzen</button>
+    </div>
+  </div>
+
+  <footer class="note">Burschenschaft Verna &middot; internes Kassenwerkzeug &middot; nicht für externe Weitergabe</footer>
+</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json' };
+const ADMIN_PIN = '1920';
+
+const TAGE = ['Freitag','Samstag','Sonntag','Montag'];
+const STANDARD_ARTIKEL = [
+  { id:'bon', name:'Bon', preis:1.80, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[1,5,10,20,25,50,100] },
+  { id:'mbon', name:'Mitglieder-Bon', preis:1.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[1,5,10,20,25,50,100] },
+  { id:'fass', name:'Fass', preis:180.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] },
+  { id:'eistee', name:'Eistee-Korn Kanister', preis:75.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] },
+  { id:'apfelwein', name:'Kiste Apfelwein (inkl. 1 Cola gratis)', preis:75.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] },
+  { id:'flasche', name:'1 Flasche', preis:9.00, tage:['Freitag','Samstag','Sonntag','Montag'], quick:[] }
+];
+
+let artikel = JSON.parse(JSON.stringify(STANDARD_ARTIKEL));
+let cloudOk = false;
+
+function checkPin(){
+  const val = document.getElementById('pin-input').value;
+  if(val === ADMIN_PIN){
+    document.getElementById('pin-gate').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('pin-error').textContent = 'Falsche PIN.';
+  }
+}
+document.getElementById('pin-input').addEventListener('keydown', e=>{ if(e.key==='Enter') checkPin(); });
+
+function setStatus(t){ document.getElementById('save-status').textContent = t; }
+function updateCloudBadge(){
+  const el = document.getElementById('cloud-badge');
+  if(!el) return;
+  el.textContent = cloudOk ? '\u2601 Online' : '\u26a0 Offline';
+  el.style.color = cloudOk ? 'var(--success)' : 'var(--danger)';
+}
+function showToast(msg, isError){
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:${isError?'#9c332c':'#2f4a3c'};color:#fff;padding:14px 22px;border-radius:10px;font-size:14.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:10002;max-width:90vw;text-align:center;opacity:0;transition:opacity 0.2s;`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; });
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(), 250); }, 3000);
+}
+
+const STANDARD_STRAFENKATALOG = [
+  { grund:'Aufbau/Abbau nicht erschienen (unentschuldigt)', betrag:50 },
+  { grund:'Zu spät gekommen (0–15 Min.)', betrag:5 },
+  { grund:'Zu spät gekommen (15–30 Min., zusätzlich)', betrag:10 },
+  { grund:'Zu spät gekommen (weitere 15 Min., zusätzlich)', betrag:10 },
+  { grund:'Kein Dienst angetreten', betrag:100 },
+  { grund:'Dienst nur teilweise erfüllt', betrag:25 },
+  { grund:'Dienste getauscht ohne Absprache mit Vorstand', betrag:10 },
+  { grund:'Nachtwache nicht aufgeräumt', betrag:100 },
+  { grund:'Nachtwache nur teilweise erledigt', betrag:25 }
+];
+let strafenkatalog = JSON.parse(JSON.stringify(STANDARD_STRAFENKATALOG));
+let schichtplanNeuesBild = null;
+
+function strafeHinzufuegen(){
+  strafenkatalog.push({ grund:'', betrag:0 });
+  renderStrafenkatalog();
+}
+function strafeEntfernen(idx){
+  strafenkatalog.splice(idx,1);
+  renderStrafenkatalog();
+}
+function onStrafeFeld(idx, feld, val){
+  if(feld==='grund') strafenkatalog[idx].grund = val;
+  else strafenkatalog[idx].betrag = parseFloat(val.replace(',','.')) || 0;
+}
+function renderStrafenkatalog(){
+  document.getElementById('strafenkatalog-body').innerHTML = strafenkatalog.map((s,i)=>`
+    <tr>
+      <td><input type="text" value="${s.grund}" oninput="onStrafeFeld(${i},'grund',this.value)"/></td>
+      <td><input type="number" min="0" step="1" value="${s.betrag}" oninput="onStrafeFeld(${i},'betrag',this.value)"/></td>
+      <td class="del-col"><button onclick="strafeEntfernen(${i})">\u2715</button></td>
+    </tr>`).join('');
+}
+async function strafenkatalogSpeichern(){
+  const leer = strafenkatalog.some(s=>!s.grund.trim());
+  if(leer){ showToast('\u2717 Bitte alle Gründe ausfüllen', true); return; }
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_config`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+      body: JSON.stringify({ id:'strafenkatalog', data: strafenkatalog })
+    });
+    showToast('\u2713 Strafgeldkatalog gespeichert');
+  }catch(e){ showToast('\u2717 Speichern fehlgeschlagen', true); }
+}
+function strafenkatalogZuruecksetzen(){
+  if(!confirm('Wirklich auf den Standard-Katalog zurücksetzen?')) return;
+  strafenkatalog = JSON.parse(JSON.stringify(STANDARD_STRAFENKATALOG));
+  renderStrafenkatalog();
+}
+
+function schichtplanDateiGewaehlt(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = 1600;
+      const scale = Math.min(1, maxW/img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width*scale;
+      canvas.height = img.height*scale;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      schichtplanNeuesBild = canvas.toDataURL('image/jpeg', 0.82);
+      document.getElementById('schichtplan-vorschau').innerHTML = `<img src="${schichtplanNeuesBild}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);"/>`;
+      document.getElementById('schichtplan-speichern-btn').style.display = 'inline-block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+async function schichtplanSpeichern(){
+  if(!schichtplanNeuesBild){ return; }
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_config`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+      body: JSON.stringify({ id:'schichtplan_bild', data: { bild: schichtplanNeuesBild } })
+    });
+    showToast('\u2713 Schichtplan gespeichert \u2013 wirkt beim nächsten Öffnen der Seite');
+    document.getElementById('schichtplan-speichern-btn').style.display = 'none';
+  }catch(e){ showToast('\u2717 Speichern fehlgeschlagen \u2013 Bild eventuell zu groß?', true); }
+}
+
+function newArtikelId(){ return 'art_' + Date.now().toString(36) + '_' + Math.floor(Math.random()*1000); }
+function artikelHinzufuegen(){
+  artikel.push({ id:newArtikelId(), name:'', preis:0, tage:[...TAGE], quick:[] });
+  renderArtikel();
+}
+function artikelEntfernen(idx){
+  artikel.splice(idx,1);
+  renderArtikel();
+}
+function onArtikelFeld(idx, feld, val){
+  if(feld==='name') artikel[idx].name = val;
+  else if(feld==='preis') artikel[idx].preis = parseFloat(val.replace(',','.')) || 0;
+}
+function onArtikelTag(idx, tag, checked){
+  const a = artikel[idx];
+  if(checked && !a.tage.includes(tag)) a.tage.push(tag);
+  if(!checked) a.tage = a.tage.filter(t=>t!==tag);
+}
+function renderArtikel(){
+  document.getElementById('artikel-body').innerHTML = artikel.map((a,i)=>`
+    <tr>
+      <td><input type="text" value="${a.name}" oninput="onArtikelFeld(${i},'name',this.value)"/></td>
+      <td><input type="number" min="0" step="0.01" value="${a.preis}" oninput="onArtikelFeld(${i},'preis',this.value)"/></td>
+      <td class="tage-col">${TAGE.map(t=>`<label><input type="checkbox" ${a.tage.includes(t)?'checked':''} onchange="onArtikelTag(${i},'${t}',this.checked)"/>${t.slice(0,2)}</label>`).join('')}</td>
+      <td class="del-col"><button onclick="artikelEntfernen(${i})">\u2715</button></td>
+    </tr>`).join('');
+}
+
+async function ladeConfig(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_config?id=eq.artikel&select=data`, { headers: SB_HEADERS });
+    if(!res.ok) throw new Error();
+    const rows = await res.json();
+    if(rows.length>0 && Array.isArray(rows[0].data)) artikel = rows[0].data;
+    cloudOk = true;
+  }catch(e){ cloudOk = false; }
+  updateCloudBadge();
+  renderArtikel();
+
+  try{
+    const res2 = await fetch(`${SUPABASE_URL}/rest/v1/admin_config?id=eq.paypal&select=data`, { headers: SB_HEADERS });
+    const rows2 = res2.ok ? await res2.json() : [];
+    if(rows2.length>0 && rows2[0].data && rows2[0].data.handle){
+      document.getElementById('paypal-handle').value = rows2[0].data.handle;
+    } else {
+      document.getElementById('paypal-handle').value = 'BSVerna';
+    }
+  }catch(e){}
+
+  try{
+    const res3 = await fetch(`${SUPABASE_URL}/rest/v1/admin_config?id=eq.strafenkatalog&select=data`, { headers: SB_HEADERS });
+    const rows3 = res3.ok ? await res3.json() : [];
+    if(rows3.length>0 && Array.isArray(rows3[0].data) && rows3[0].data.length>0){
+      strafenkatalog = rows3[0].data;
+    }
+  }catch(e){}
+  renderStrafenkatalog();
+}
+
+async function artikelSpeichern(){
+  const leer = artikel.some(a=>!a.name.trim());
+  if(leer){ showToast('\u2717 Bitte alle Artikel-Namen ausfüllen', true); return; }
+  setStatus('Speichere …');
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_config`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+      body: JSON.stringify({ id:'artikel', data: artikel })
+    });
+    cloudOk = true;
+    setStatus('Gespeichert');
+    showToast('\u2713 Artikel gespeichert \u2013 wirkt in der Kassen-App innerhalb von 15 Sekunden');
+  }catch(e){
+    cloudOk = false;
+    setStatus('Fehlgeschlagen');
+    showToast('\u2717 Speichern fehlgeschlagen \u2013 keine Verbindung?', true);
+  }
+  updateCloudBadge();
+}
+function artikelZuruecksetzen(){
+  if(!confirm('Wirklich auf die Standard-Artikel zurücksetzen? Eigene Änderungen gehen verloren.')) return;
+  artikel = JSON.parse(JSON.stringify(STANDARD_ARTIKEL));
+  renderArtikel();
+}
+
+async function paypalSpeichern(){
+  const handle = document.getElementById('paypal-handle').value.trim();
+  if(!handle){ showToast('\u2717 Bitte PayPal-Namen eingeben', true); return; }
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_config`, {
+      method:'POST',
+      headers: Object.assign({}, SB_HEADERS, {'Prefer':'return=minimal,resolution=merge-duplicates'}),
+      body: JSON.stringify({ id:'paypal', data: { handle } })
+    });
+    showToast('\u2713 PayPal-Empfänger gespeichert');
+  }catch(e){
+    showToast('\u2717 Speichern fehlgeschlagen', true);
+  }
+}
+
+function toggleFullscreen(){
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  else{ document.exitFullscreen().catch(()=>{}); }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
+
+function init(){
+  ladeConfig();
+}
+</script>
+</body>
+</html>

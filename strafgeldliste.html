@@ -375,7 +375,7 @@ function onToggleRueckgezahlt(id, checked){
   scheduleSave();
   if(m) syncUpsertMitglied(m);
 }
-const STRAFENKATALOG = [
+let STRAFENKATALOG = [
   { grund:'Aufbau/Abbau nicht erschienen (unentschuldigt)', betrag:50 },
   { grund:'Zu spät gekommen (0–15 Min.)', betrag:5 },
   { grund:'Zu spät gekommen (15–30 Min., zusätzlich)', betrag:10 },
@@ -386,6 +386,17 @@ const STRAFENKATALOG = [
   { grund:'Nachtwache nicht aufgeräumt', betrag:100 },
   { grund:'Nachtwache nur teilweise erledigt', betrag:25 }
 ];
+async function ladeStrafenkatalogVonAdmin(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_config?id=eq.strafenkatalog&select=data`, { headers: SB_HEADERS });
+    if(!res.ok) return;
+    const rows = await res.json();
+    if(rows.length>0 && Array.isArray(rows[0].data) && rows[0].data.length>0){
+      STRAFENKATALOG = rows[0].data;
+    }
+  }catch(e){ /* Standard-Katalog bleibt aktiv */ }
+}
+ladeStrafenkatalogVonAdmin();
 function addStrafe(id){
   const overlay = document.createElement('div');
   overlay.id = 'strafe-chooser-overlay';
