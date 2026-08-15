@@ -190,6 +190,7 @@
       <button class="primary" onclick="printSummary()">Drucken</button>
       <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
       <button id="status-btn" onclick="openStatusUebersicht()" style="position:relative;">📋 Status-Übersicht<span id="status-badge" style="display:none;position:absolute;top:-8px;right:-8px;background:var(--danger,#9c332c);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700;"></span></button>
+      <button onclick="openDifferenzHistorie()">📊 Differenz-Historie</button>
       <button onclick="exportFile()">Datei speichern</button>
       <button onclick="document.getElementById('import-input').click()">Datei laden</button>
       <input type="file" id="import-input" accept="application/json,.json,text/plain" style="display:none;" onchange="importFile(this)"/>
@@ -544,7 +545,10 @@ function alleKassenStatus(){
       } else {
         status='fehlt'; farbe='var(--danger,#9c332c)'; text='\u2717 Noch nicht bearbeitet';
       }
-      result.push({ tag:t, kasseIdx:idx, name:k.name, status, farbe, text });
+      const soll = k.type==='spende' ? null : sollUmsatz(k);
+      const ist = k.type==='spende' ? null : istUmsatz(k);
+      const differenz = (soll!==null && k.endeZeitstempel) ? (ist-soll) : null;
+      result.push({ tag:t, kasseIdx:idx, name:k.name, status, farbe, text, verantwortlicher:k.verantwortlicher||'', differenz });
     });
   });
   return result;
@@ -586,6 +590,79 @@ function openStatusUebersicht(){
     </div>`;
   document.body.appendChild(overlay);
 }
+function openDifferenzHistorie(){
+  const alle = alleKassenStatus().filter(s=> s.differenz!==null);
+  if(alle.length===0){
+    const overlay = document.createElement('div');
+    overlay.id = 'diff-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(27,42,34,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;';
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.innerHTML = `<div style="background:var(--paper-2);border-radius:14px;padding:24px;max-width:400px;text-align:center;">
+      <div style="margin-bottom:14px;">Noch keine ausgezählten Kassen vorhanden.</div>
+      <button onclick="document.getElementById('diff-overlay').remove();">Schließen</button>
+    </div>`;
+    document.body.appendChild(overlay);
+    return;
+  }
+
+  // Nach Verantwortlichem gruppieren
+  const proPerson = {};
+  alle.forEach(s=>{
+    const name = s.verantwortlicher || '(ohne Namen)';
+    if(!proPerson[name]) proPerson[name] = [];
+    proPerson[name].push(s);
+  });
+
+  const rows = alle.map(s=>{
+    const farbe = Math.abs(s.differenz) < 0.01 ? 'var(--success,#2f6b46)' : (s.differenz < 0 ? 'var(--danger,#9c332c)' : 'var(--warning,#8a5a1f)');
+    const text = Math.abs(s.differenz) < 0.01 ? 'genau richtig' : (s.differenz < 0 ? 'fehlt' : 'zu viel');
+    return `<tr>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);">${s.tag}</td>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);">${s.name}</td>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);">${s.verantwortlicher||'\u2013'}</td>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);text-align:right;color:${farbe};font-weight:600;">${s.differenz>=0?'+':''}${fmt(s.differenz)} (${text})</td>
+    </tr>`;
+  }).join('');
+
+  const personenRows = Object.keys(proPerson).map(name=>{
+    const eintraege = proPerson[name];
+    const gesamtDiff = eintraege.reduce((sum,s)=>sum+s.differenz, 0);
+    const abweichungen = eintraege.filter(s=>Math.abs(s.differenz)>=0.01).length;
+    const farbe = abweichungen===0 ? 'var(--success,#2f6b46)' : 'var(--warning,#8a5a1f)';
+    return `<tr>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);">${name}</td>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);text-align:center;">${eintraege.length}</td>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);text-align:center;color:${farbe};font-weight:600;">${abweichungen}</td>
+      <td style="padding:7px 10px;border-top:1px solid var(--line);text-align:right;font-weight:600;">${fmt(gesamtDiff)}</td>
+    </tr>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'diff-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(27,42,34,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;';
+  overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--paper-2);border-radius:14px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;padding:22px 24px;box-shadow:0 14px 40px rgba(0,0,0,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-family:var(--font-display);font-size:19px;color:var(--forest-dark);">Differenz-Historie</div>
+        <button onclick="document.getElementById('diff-overlay').remove();" style="background:none;border:none;font-size:20px;cursor:pointer;">\u2715</button>
+      </div>
+
+      <div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px;font-weight:600;">Zusammenfassung je Verantwortlicher</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:22px;">
+        <thead><tr style="background:var(--forest-tint);"><th style="text-align:left;padding:7px 10px;">Name</th><th style="padding:7px 10px;">Kassen</th><th style="padding:7px 10px;">Abweichungen</th><th style="text-align:right;padding:7px 10px;">Summe Differenz</th></tr></thead>
+        <tbody>${personenRows}</tbody>
+      </table>
+
+      <div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px;font-weight:600;">Alle Kassen im Einzelnen</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:var(--forest-tint);"><th style="text-align:left;padding:7px 10px;">Tag</th><th style="text-align:left;padding:7px 10px;">Kasse</th><th style="text-align:left;padding:7px 10px;">Verantwortlicher</th><th style="text-align:right;padding:7px 10px;">Soll-Ist-Differenz</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
 function springeZuKasse(tag, kasseIdx){
   activeTag = tag;
   activeKasse = kasseIdx;

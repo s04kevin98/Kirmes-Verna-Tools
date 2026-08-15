@@ -3392,6 +3392,15 @@ function renderMenuContent(){
   const tagesUmsatz = {};
   TAGE.forEach(t=> tagesUmsatz[t] = transactions.filter(x=>x.tag===t).reduce((s,x)=> s+x.summe, 0));
 
+  const avgBon = verkaufe.length > 0 ? verkaufe.reduce((s,t)=>s+t.summe,0) / verkaufe.length : 0;
+  const trinkgeldTransaktionen = verkaufe.filter(t=> t.items.some(i=>i.artikel==='Trinkgeld'));
+  const trinkgeldSumme = verkaufe.reduce((s,t)=> s + t.items.filter(i=>i.artikel==='Trinkgeld').reduce((s2,i)=>s2+i.preis*i.menge,0), 0);
+  const trinkgeldQuote = verkaufe.length > 0 ? (trinkgeldTransaktionen.length/verkaufe.length*100) : 0;
+  const rueckgabeQuote = stkVerkauft > 0 ? (stkRueckgabe/stkVerkauft*100) : 0;
+  const zahlartMap = {};
+  verkaufe.forEach(t=>{ const za=t.zahlart||'bar'; zahlartMap[za]=(zahlartMap[za]||0)+t.summe; });
+  const zahlartLabel = { bar:'Bargeld', paypal:'PayPal', karte:'Karte' };
+
   let html = `<div class="stat-filter">
     <button class="${statFilter==='alle'?'active':''}" onclick="setStatFilter('alle')">Alle Tage</button>
     ${TAGE.map(t=>`<button class="${statFilter===t?'active':''}" onclick="setStatFilter('${t}')">${t}</button>`).join('')}
@@ -3405,8 +3414,20 @@ function renderMenuContent(){
     <div class="metric-card"><div class="label">Stück zurückgegeben</div><div class="value">${stkRueckgabe}</div></div>
   </div>`;
 
+  html += `<div class="summary-grid">
+    <div class="metric-card"><div class="label">\u00d8 Bon-Wert</div><div class="value">${fmt(avgBon)}</div></div>
+    <div class="metric-card"><div class="label">Trinkgeld-Quote</div><div class="value">${trinkgeldQuote.toFixed(1)}%</div></div>
+    <div class="metric-card"><div class="label">Trinkgeld gesamt</div><div class="value">${fmt(trinkgeldSumme)}</div></div>
+    <div class="metric-card"><div class="label">Rückgabe-Quote</div><div class="value">${rueckgabeQuote.toFixed(1)}%</div></div>
+  </div>`;
+
   html += `<div class="chart-wrap"><div class="chart-title">Umsatz je Tag</div><div id="chart-tage"></div></div>`;
   html += `<div class="chart-wrap"><div class="chart-title">Umsatz je Artikel (${statFilter==='alle'?'alle Tage':statFilter})</div><div id="chart-artikel"></div></div>`;
+  html += `<div style="font-size:12.5px;color:var(--text-2);margin:16px 0 8px;">Zahlarten</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px;background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden;">
+      <thead><tr style="background:var(--forest-tint);"><th style="text-align:left;padding:6px 8px;">Zahlart</th><th style="text-align:right;padding:6px 8px;">Umsatz</th><th style="text-align:right;padding:6px 8px;">Anteil</th></tr></thead>
+      <tbody>${Object.keys(zahlartMap).map(k=>`<tr><td style="padding:5px 8px;border-top:1px solid var(--line-soft);">${zahlartLabel[k]||k}</td><td style="text-align:right;padding:5px 8px;border-top:1px solid var(--line-soft);font-family:var(--font-num);">${fmt(zahlartMap[k])}</td><td style="text-align:right;padding:5px 8px;border-top:1px solid var(--line-soft);font-family:var(--font-num);">${(zahlartMap[k]/(gesamt||1)*100).toFixed(1)}%</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;padding:14px;color:var(--text-muted);">Keine Daten</td></tr>'}</tbody>
+    </table>`;
 
   html += `<div style="font-size:12.5px;color:var(--text-2);margin-bottom:8px;">Details je Artikel</div>
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:20px;background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden;">

@@ -114,7 +114,7 @@ async function loadData(){
     if(!res.ok) throw new Error('HTTP '+res.status);
     const rows = await res.json();
     alleVerkaeufe = rows.map(r=>({
-      id:r.id, tag:r.tag, zeit:r.zeit, datum:r.datum,
+      id:r.id, tag:r.tag, zeit:r.zeit, datum:r.datum, zahlart:r.zahlart||'bar',
       items: r.items, summe: parseFloat(r.summe), gegeben: r.gegeben===null?null:parseFloat(r.gegeben)
     }));
     document.getElementById('error-slot').innerHTML = '';
@@ -165,6 +165,32 @@ function render(){
   const tagesUmsatz = {};
   TAGE.forEach(t=> tagesUmsatz[t] = alleVerkaeufe.filter(x=>x.tag===t).reduce((s,x)=> s+x.summe, 0));
 
+  // Umsatz nach Uhrzeit (Stunde)
+  const stundenUmsatz = {};
+  verkaufe.forEach(t=>{
+    const std = (t.zeit||'00:00').split(':')[0];
+    stundenUmsatz[std] = (stundenUmsatz[std]||0) + t.summe;
+  });
+
+  // Durchschnittlicher Bon-Wert
+  const avgBon = verkaufe.length > 0 ? verkaufe.reduce((s,t)=>s+t.summe,0) / verkaufe.length : 0;
+
+  // Zahlarten-Verteilung
+  const zahlartMap = {};
+  verkaufe.forEach(t=>{
+    const za = t.zahlart || 'bar';
+    zahlartMap[za] = (zahlartMap[za]||0) + t.summe;
+  });
+  const zahlartLabel = { bar:'Bargeld', paypal:'PayPal', karte:'Karte' };
+
+  // Trinkgeld-Quote
+  const trinkgeldTransaktionen = verkaufe.filter(t=> t.items.some(i=>i.artikel==='Trinkgeld'));
+  const trinkgeldSumme = verkaufe.reduce((s,t)=> s + t.items.filter(i=>i.artikel==='Trinkgeld').reduce((s2,i)=>s2+i.preis*i.menge,0), 0);
+  const trinkgeldQuote = verkaufe.length > 0 ? (trinkgeldTransaktionen.length/verkaufe.length*100) : 0;
+
+  // Rueckgabe-Quote (Stueck zurueck als % der verkauften Stueck)
+  const rueckgabeQuote = stkVerkauft > 0 ? (stkRueckgabe/stkVerkauft*100) : 0;
+
   const content = document.getElementById('content');
   if(alleVerkaeufe.length===0){
     content.innerHTML = '<div class="status-msg">Noch keine Verkäufe erfasst.</div>';
@@ -180,8 +206,25 @@ function render(){
       <div class="metric-card"><div class="label">Stück zurückgegeben</div><div class="value">${stkRueckgabe}</div></div>
     </div>
     <div class="insight-box"><div class="insight-label">\ud83d\udcca Automatische Einschätzung</div><div class="insight-text">${einschaetzung(tagesUmsatz)}</div></div>
+
+    <div class="summary-grid">
+      <div class="metric-card"><div class="label">\u00d8 Bon-Wert</div><div class="value">${fmt(avgBon)}</div></div>
+      <div class="metric-card"><div class="label">Trinkgeld-Quote</div><div class="value">${trinkgeldQuote.toFixed(1)}%</div></div>
+      <div class="metric-card"><div class="label">Trinkgeld gesamt</div><div class="value">${fmt(trinkgeldSumme)}</div></div>
+      <div class="metric-card"><div class="label">Rückgabe-Quote</div><div class="value">${rueckgabeQuote.toFixed(1)}%</div></div>
+    </div>
+
     <div class="chart-wrap"><div class="chart-title">Umsatz je Tag</div><div id="chart-tage"></div></div>
     <div class="chart-wrap"><div class="chart-title">Umsatz je Artikel (${statFilter==='alle'?'alle Tage':statFilter})</div><div id="chart-artikel"></div></div>
+    <div class="chart-wrap"><div class="chart-title">Umsatz nach Uhrzeit (${statFilter==='alle'?'alle Tage':statFilter})</div><div id="chart-stunden"></div></div>
+
+    <div class="chart-title" style="margin-top:18px;">Zahlarten</div>
+    <table class="verkaufe">
+      <thead><tr><th>Zahlart</th><th class="num">Umsatz</th><th class="num">Anteil</th></tr></thead>
+      <tbody>${Object.keys(zahlartMap).map(k=>`<tr><td>${zahlartLabel[k]||k}</td><td class="num">${fmt(zahlartMap[k])}</td><td class="num">${(zahlartMap[k]/(gesamt||1)*100).toFixed(1)}%</td></tr>`).join('')}</tbody>
+    </table>
+
+    <div class="chart-title" style="margin-top:18px;">Artikel im Detail</div>
     <table class="verkaufe">
       <thead><tr><th>Artikel</th><th class="num">Menge</th><th class="num">Umsatz</th></tr></thead>
       <tbody>${Object.keys(artikelMap).map(k=>`<tr><td>${k}</td><td class="num">${artikelMap[k].menge}</td><td class="num">${fmt(artikelMap[k].summe)}</td></tr>`).join('')}</tbody>
@@ -189,6 +232,7 @@ function render(){
   `;
   renderChartTage(tagesUmsatz);
   renderChartArtikel(artikelMap);
+  renderChartStunden(stundenUmsatz);
 }
 
 function einschaetzung(tagesUmsatz){
@@ -239,6 +283,27 @@ function renderChartTage(tagesUmsatz){
     bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#2f4a3c"/>
       <text x="${x+barW/2}" y="${y-6}" text-anchor="middle" class="amount" font-size="10.5">${fmt(w.wert)}</text>
       <text x="${x+barW/2}" y="${chartH+topPad+18}" text-anchor="middle" font-size="11">${w.label}</text>`;
+  });
+  const width = werte.length*(barW+gap)-gap+leftPad*2;
+  const totalH = chartH+topPad+28;
+  el.innerHTML = `<svg viewBox="0 0 ${width} ${totalH}" style="width:${width}px;height:${totalH}px;max-width:100%;display:block;">${bars}</svg>`;
+}
+function renderChartStunden(stundenUmsatz){
+  const el = document.getElementById('chart-stunden');
+  if(!el) return;
+  const stunden = Object.keys(stundenUmsatz).sort();
+  if(stunden.length===0){ el.innerHTML = '<div style="font-size:12.5px;color:var(--text-muted);">Keine Daten</div>'; return; }
+  const werte = stunden.map(s=>({ label:s+' Uhr', wert:stundenUmsatz[s] }));
+  const max = Math.max(1, ...werte.map(w=>w.wert));
+  const barW = 46, gap = 14, chartH = 120, topPad = 24, leftPad = 8;
+  let bars = '';
+  werte.forEach((w,i)=>{
+    const h = Math.max(2, (w.wert/max)*chartH);
+    const x = leftPad + i*(barW+gap);
+    const y = chartH - h + topPad;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#8a6a2f"/>
+      <text x="${x+barW/2}" y="${y-6}" text-anchor="middle" class="amount" font-size="9.5">${fmt(w.wert)}</text>
+      <text x="${x+barW/2}" y="${chartH+topPad+18}" text-anchor="middle" font-size="10">${w.label}</text>`;
   });
   const width = werte.length*(barW+gap)-gap+leftPad*2;
   const totalH = chartH+topPad+28;

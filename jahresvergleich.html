@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jahresvergleich – Burschenschaft Verna</title>
+<style>
+  :root{
+    --ink:#1b2a22; --paper:#faf7ef; --paper-2:#ffffff; --line:#ddd3ba; --line-soft:#eae2cc;
+    --forest:#2f4a3c; --forest-dark:#1f332a; --forest-tint:#e7ede8; --gold:#8a6a2f; --gold-tint:#f2ead4;
+    --danger:#9c332c; --success:#2f6b46; --text-2:#5c6b60; --text-muted:#8a9188;
+    --font-display:Georgia,'Times New Roman',serif; --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-num:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background-color:var(--paper); background-image:repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(47,74,60,0.05) 28px); color:var(--ink); font-family:var(--font-body); font-size:15px; line-height:1.5; padding:0 0 50px; }
+  .wrap{ max-width:900px; margin:0 auto; padding:0 16px; }
+  .back-strip{ background:var(--forest-dark); text-align:center; padding:8px 0; }
+  .back-strip a{ color:#e7ede8; font-size:12.5px; text-decoration:none; }
+  header.masthead{ background:var(--paper-2); border-bottom:3px solid var(--forest); padding:14px 0; margin-bottom:18px; position:relative; }
+  header .row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding-right:120px; }
+  header img{ height:40px; }
+  header h1{ font-family:var(--font-display); font-size:19px; font-weight:700; margin:0; color:var(--forest-dark); }
+  header .eyebrow{ font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold); font-weight:600; margin:0; }
+  .fullscreen-btn-corner{ position:absolute; top:16px; right:16px; font-size:12px; padding:8px 12px; border-radius:6px; border:1px solid var(--line); background:var(--paper-2); color:var(--ink); }
+  .status{ font-size:11px; color:var(--text-muted); }
+
+  .chart-wrap{ background:var(--paper-2); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:20px; overflow-x:auto; }
+  .chart-title{ font-size:13px; color:var(--text-2); margin-bottom:10px; font-weight:600; }
+  .amount{ font-family:var(--font-num); font-weight:700; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--paper-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:24px; }
+  thead th{ text-align:left; background:var(--forest-tint); color:var(--forest-dark); padding:9px 12px; font-size:11px; text-transform:uppercase; letter-spacing:0.03em; }
+  td{ padding:8px 12px; border-top:1px solid var(--line-soft); font-size:13.5px; }
+  .num{ text-align:right; font-family:var(--font-num); }
+  tr.aktuell td{ background:var(--gold-tint); font-weight:600; }
+
+  .empty-hint{ text-align:center; color:var(--text-muted); font-size:13px; padding:30px; }
+  footer.note{ text-align:center; font-size:11.5px; color:var(--text-muted); margin-top:30px; }
+</style>
+</head>
+<body>
+<div class="back-strip"><a href="./kirmes-hub.html">&larr; Zurück zur Kirmes-Übersicht</a></div>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="row">
+      <img alt="Logo Burschenschaft Verna" src="data:image/png;base64,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"/>
+      <div>
+        <p class="eyebrow">Burschenschaft Verna</p>
+        <h1>Jahresvergleich</h1>
+      </div>
+      <span class="status" id="save-status" style="margin-left:auto;"></span>
+    </div>
+    <button class="fullscreen-btn-corner" id="fullscreen-btn" onclick="toggleFullscreen()">⛶ Vollbild</button>
+  </header>
+
+  <div id="inhalt"></div>
+
+  <footer class="note">Burschenschaft Verna &middot; internes Kassenwerkzeug &middot; nicht für externe Weitergabe<br/>Basierend auf den im Archiv gesicherten Jahren sowie dem aktuellen, laufenden Stand.</footer>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xifkpyaoqqghkgbgtcxd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CEi2WjMywf7EonMniWysJg_q-LeW-TA';
+const SB_HEADERS = { 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY };
+
+function fmt(v){ return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0) + ' €'; }
+function setStatus(t){ document.getElementById('save-status').textContent = t; }
+
+function summenAusBuchungen(buchungen){
+  const ein = (buchungen||[]).filter(b=>b.art==='einnahme').reduce((s,b)=>s+(parseFloat(b.betrag)||0),0);
+  const aus = (buchungen||[]).filter(b=>b.art==='ausgabe').reduce((s,b)=>s+(parseFloat(b.betrag)||0),0);
+  return { einnahmen:ein, ausgaben:aus, gewinn:ein-aus };
+}
+
+async function ladeDaten(){
+  setStatus('Lade …');
+  const jahre = [];
+
+  // Aktueller, laufender Stand
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/buchungen?select=art,betrag`, { headers: SB_HEADERS });
+    if(res.ok){
+      const rows = await res.json();
+      const s = summenAusBuchungen(rows);
+      jahre.push({ name: 'Aktuell (laufend)', ...s, aktuell:true, datum: new Date().toISOString() });
+    }
+  }catch(e){}
+
+  // Archivierte Jahre
+  try{
+    const res2 = await fetch(`${SUPABASE_URL}/rest/v1/kirmes_archiv?select=id,name,created_at,data`, { headers: SB_HEADERS });
+    if(res2.ok){
+      const rows2 = await res2.json();
+      rows2.forEach(r=>{
+        const s = summenAusBuchungen(r.data && r.data.buchungen);
+        jahre.push({ name: r.name, ...s, aktuell:false, datum: r.created_at });
+      });
+    }
+  }catch(e){}
+
+  jahre.sort((a,b)=> new Date(a.datum) - new Date(b.datum));
+  setStatus('Aktualisiert');
+  render(jahre);
+}
+
+function balkenSvg(werte, farbeFn){
+  if(werte.length===0) return '<div style="font-size:12.5px;color:var(--text-muted);">Keine Daten</div>';
+  const max = Math.max(1, ...werte.map(w=>Math.abs(w.wert)));
+  const barW = 90, gap = 30, chartH = 140, leftPad = 18, topPad = 24;
+  let bars = '';
+  werte.forEach((w,i)=>{
+    const h = Math.max(2, (Math.abs(w.wert)/max)*chartH);
+    const x = leftPad + i*(barW+gap);
+    const y = chartH - h + topPad;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${farbeFn(w,i)}"/>
+      <text x="${x+barW/2}" y="${y-7}" text-anchor="middle" class="amount" font-size="11">${fmt(w.wert)}</text>
+      <text x="${x+barW/2}" y="${chartH+topPad+20}" text-anchor="middle" font-size="10.5">${w.label}</text>`;
+  });
+  const width = werte.length*(barW+gap)-gap+leftPad*2;
+  return `<svg viewBox="0 0 ${width} ${chartH+topPad+30}" style="width:${width}px;max-width:100%;">${bars}</svg>`;
+}
+
+function render(jahre){
+  const el = document.getElementById('inhalt');
+  if(jahre.length===0){
+    el.innerHTML = '<div class="empty-hint">Noch keine Daten \u2013 weder aktueller Stand noch archivierte Jahre gefunden.</div>';
+    return;
+  }
+
+  const rows = jahre.map(j=>`
+    <tr class="${j.aktuell?'aktuell':''}">
+      <td>${j.name}${j.aktuell?' <span style="color:var(--gold);font-size:11px;">(läuft noch)</span>':''}</td>
+      <td class="num">${fmt(j.einnahmen)}</td>
+      <td class="num">${fmt(j.ausgaben)}</td>
+      <td class="num" style="color:${j.gewinn>=0?'var(--success)':'var(--danger)'};font-weight:700;">${fmt(j.gewinn)}</td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="chart-wrap">
+      <div class="chart-title">Gewinn / Überschuss je Jahr</div>
+      ${balkenSvg(jahre.map(j=>({label:j.name, wert:j.gewinn})), (w)=> w.wert>=0?'#2f6b46':'#9c332c')}
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Einnahmen je Jahr</div>
+      ${balkenSvg(jahre.map(j=>({label:j.name, wert:j.einnahmen})), ()=>'#2f6b46')}
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Ausgaben je Jahr</div>
+      ${balkenSvg(jahre.map(j=>({label:j.name, wert:j.ausgaben})), ()=>'#9c332c')}
+    </div>
+    <table>
+      <thead><tr><th>Jahr / Archiv</th><th class="num">Einnahmen</th><th class="num">Ausgaben</th><th class="num">Gewinn</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function toggleFullscreen(){
+  if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  else{ document.exitFullscreen().catch(()=>{}); }
+}
+document.addEventListener('fullscreenchange', ()=>{
+  const btn = document.getElementById('fullscreen-btn');
+  if(btn) btn.textContent = document.fullscreenElement ? '\u26f6 Vollbild verlassen' : '\u26f6 Vollbild';
+});
+
+ladeDaten();
+</script>
+</body>
+</html>

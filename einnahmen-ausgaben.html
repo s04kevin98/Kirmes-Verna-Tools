@@ -151,6 +151,12 @@
   <div class="gesamt-grid" id="gesamt-summary"></div>
 
   <div class="chart-wrap" id="chart" style="margin-bottom:30px;"></div>
+  <div style="font-size:13px;color:var(--text-2);margin-bottom:10px;font-weight:600;">Einnahmen nach Kategorie</div>
+  <div class="chart-wrap" id="chart-kategorie-einnahme" style="margin-bottom:24px;"></div>
+  <div style="font-size:13px;color:var(--text-2);margin-bottom:10px;font-weight:600;">Ausgaben nach Kategorie</div>
+  <div class="chart-wrap" id="chart-kategorie-ausgabe" style="margin-bottom:24px;"></div>
+  <div style="font-size:13px;color:var(--text-2);margin-bottom:10px;font-weight:600;">Verlauf über die Tage</div>
+  <div class="chart-wrap" id="chart-verlauf" style="margin-bottom:30px;"></div>
 
   <div class="section-block">
     <div class="section-head">
@@ -459,6 +465,56 @@ function refreshTotals(){
   document.getElementById('sum-ausgaben').textContent = fmt(sa);
   renderGesamt(se, sa, saldo);
   renderChart(se, sa, saldo);
+  renderKategorieChart('einnahme', 'chart-kategorie-einnahme', '#2f6b46');
+  renderKategorieChart('ausgabe', 'chart-kategorie-ausgabe', '#9c332c');
+  renderVerlaufChart();
+}
+
+function balkenSvg(werte, farbeFn, opts){
+  opts = opts || {};
+  if(werte.length===0) return '<div style="font-size:12.5px;color:var(--text-muted);">Keine Daten</div>';
+  const max = Math.max(1, ...werte.map(w=>Math.abs(w.wert)));
+  const barW = opts.barW||90, gap = opts.gap||30, chartH = 130, leftPad = 18, topPad = 24;
+  let bars = '';
+  werte.forEach((w,i)=>{
+    const h = Math.max(2, (Math.abs(w.wert)/max)*chartH);
+    const x = leftPad + i*(barW+gap);
+    const y = chartH - h + topPad;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${farbeFn(w,i)}"/>
+      <text x="${x+barW/2}" y="${y-7}" text-anchor="middle" class="amount" font-size="11">${fmt(w.wert)}</text>
+      <text x="${x+barW/2}" y="${chartH+topPad+20}" text-anchor="middle" font-size="10.5">${w.label}</text>`;
+  });
+  const width = werte.length*(barW+gap)-gap+leftPad*2;
+  return `<svg viewBox="0 0 ${width} ${chartH+topPad+30}" style="width:${width}px;max-width:100%;">${bars}</svg>`;
+}
+
+function renderKategorieChart(art, elId, farbe){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const kats = {};
+  eintraege.filter(e=>e.art===art).forEach(e=>{ kats[e.kategorie] = (kats[e.kategorie]||0) + e.betrag; });
+  const werte = Object.keys(kats).map(k=>({ label:k, wert:kats[k] })).sort((a,b)=>b.wert-a.wert);
+  el.innerHTML = balkenSvg(werte, ()=>farbe, {barW:110, gap:24});
+}
+
+function renderVerlaufChart(){
+  const el = document.getElementById('chart-verlauf');
+  if(!el) return;
+  const tage = {};
+  eintraege.forEach(e=>{
+    if(!e.datum) return;
+    if(!tage[e.datum]) tage[e.datum] = { einnahme:0, ausgabe:0 };
+    tage[e.datum][e.art] += e.betrag;
+  });
+  const daten = Object.keys(tage).sort().map(d=>({
+    datum: new Date(d).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}),
+    saldo: tage[d].einnahme - tage[d].ausgabe
+  }));
+  el.innerHTML = balkenSvg(
+    daten.map(d=>({ label:d.datum, wert:d.saldo })),
+    (w)=> w.wert>=0 ? '#2f6b46' : '#9c332c',
+    { barW:60, gap:18 }
+  );
 }
 
 function renderGesamt(se, sa, saldo){
